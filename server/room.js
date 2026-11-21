@@ -165,6 +165,13 @@ export class Room {
     this.lastWinningPick = null;
     this.history = [];
     this.ruleChosenBy = null;
+    // Best-of-3 match: a new match starts after the previous one is decided.
+    if (!this.match || this.match.over) {
+      this.match = { game: 1, of: 3, wins: {}, totals: {}, over: false, championId: null, gameWinnerId: null };
+    } else {
+      this.match.game += 1;
+      this.match.gameWinnerId = null;
+    }
     this.rule = RULES[rand(0, RULES.length - 1)];
     this.nextRound();
   }
@@ -296,9 +303,79 @@ export class Room {
 
   end() {
     this.clearTimers();
+    const lb = this.leaderboard();
+    this.recordGrudges(lb);
+    this.recordMatch(lb);
     this.setPhase('end', 0);
     this.emit();
     this.onEnd(this);
+  }
+
+  // Grudge tracker: head-to-head record between every pair of players in this room, across rematches.
+  recordGrudges(lb) {
+    this.grudges = this.grudges || {};
+    for (let i = 0; i < lb.length; i++) {
+      for (let j = i + 1; j < lb.length; j++) {
+        const a = lb[i], b = lb[j];
+        if (a.score === b.score) continue; // a draw counts for nobody
+        const key = [a.id, b.id].sort().join('|');
+        const g = (this.grudges[key] = this.grudges[key] || {});
+        g[a.id] = (g[a.id] || 0) + 1; // a finished above b
+        g[b.id] = g[b.id] || 0;
+      }
+    }
+  }
+
+  grudgesFor(id) {
+    if (!this.grudges) return [];
+    const out = [];
+    for (const [key, g] of Object.entries(this.grudges)) {
+      const [x, y] = key.split('|');
+      if (x !== id && y !== id) continue;
+      const opp = this.get(x === id ? y : x);
+      if (!opp) continue;
+      out.push({ oppId: opp.id, oppNick: opp.nick, oppEmoji: opp.emoji, oppBot: !!opp.bot, you: g[id] || 0, them: g[opp.id] || 0 });
+    }
+    // Humans first, then the closest-fought and most-played rivalries.
+    return out
+      .sort((p, q) => (p.oppBot - q.oppBot) || ((q.you + q.them) - (p.you + p.them)))
+      .slice(0, 3);
+  }
+
+  // Best-of-3: the game winner (outright, no tie at the top) takes a match point.
+  recordMatch(lb) {
+    const m = this.match;
+    if (!m) return;
+    for (const p of lb) m.totals[p.id] = (m.totals[p.id] || 0) + p.score;
+    const top = lb[0];
+    const outright = top && !(lb[1] && lb[1].score === top.score);
+    m.gameWinnerId = outright ? top.id : null;
+    if (outright) m.wins[top.id] = (m.wins[top.id] || 0) + 1;
+    const maxWins = Math.max(0, ...Object.values(m.wins));
+    if (maxWins >= 2 || m.game >= m.of) {
+      m.over = true;
+      const ranked = Object.keys(m.totals)
+        .filter((id) => this.get(id))
+        .sort((a, b) => ((m.wins[b] || 0) - (m.wins[a] || 0)) || (m.totals[b] - m.totals[a]));
+      m.championId = ranked[0] || null;
+    }
+  }
+
+  matchView() {
+    const m = this.match;
+    if (!m) return null;
+    const nick = (id) => this.get(id)?.nick || '?';
+    return {
+      game: m.game,
+      of: m.of,
+      over: m.over,
+      gameWinnerId: m.gameWinnerId,
+      championId: m.championId,
+      championNick: m.championId ? nick(m.championId) : null,
+      standings: this.players
+        .map((p) => ({ id: p.id, nick: p.nick, emoji: p.emoji, wins: m.wins[p.id] || 0 }))
+        .sort((a, b) => b.wins - a.wins),
+    };
   }
 
   leaderboard() {
@@ -343,6 +420,8 @@ export class Room {
           }
         : null,
       leaderboard: this.phase === 'end' ? this.leaderboard() : null,
+      match: this.matchView(),
+      grudges: this.phase === 'end' ? this.grudgesFor(forId) : [],
     };
   }
 }

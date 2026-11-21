@@ -41,3 +41,34 @@ for (let i = 0; i < GAMES; i++) {
 }
 console.log(`OK: ${ok}/${GAMES} games finished cleanly.`);
 console.log('Rules played:', ruleCount);
+
+// Best-of-3 + grudges: keep rematching one room until the match is decided, several times.
+{
+  let decided = 0;
+  for (let k = 0; k < 20; k++) {
+    let resolveEnd;
+    const room = new Room('MATCH' + k, { cfg: { ...FAST, MIN_PLAYERS: 4 }, onEnd: () => resolveEnd() });
+    for (let g = 1; g <= 3; g++) {
+      const done = new Promise((r) => (resolveEnd = r));
+      room.start();
+      await done;
+      const m = room.match;
+      if (m.game !== g) throw new Error(`match game ${m.game} != ${g}`);
+      if (m.over) break;
+    }
+    const m = room.match;
+    if (!m.over || !m.championId) throw new Error('match not decided after 3 games');
+    if (Math.max(...Object.values(m.wins), 0) > 2) throw new Error('more than 2 match wins');
+    const g = room.grudgesFor(room.players[0].id);
+    if (!g.length) throw new Error('no grudges recorded');
+    for (const x of g) if (x.you + x.them > m.game) throw new Error('grudge count exceeds games played');
+    // A rematch after the match is over starts a fresh match.
+    const done = new Promise((r) => (resolveEnd = r));
+    room.start();
+    if (room.match.game !== 1) throw new Error('new match did not reset');
+    await done;
+    room.cancelEmptyTimer();
+    decided++;
+  }
+  console.log(`OK: ${decided}/20 best-of-3 matches decided, grudges recorded, new match resets.`);
+}
