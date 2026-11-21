@@ -1,8 +1,9 @@
 // All game timings and scoring knobs live here so they are easy to tune.
 export const CONFIG = {
-  ROUNDS: 10,
-  PICK_MS: 6000,        // time to secretly pick a number
-  REVEAL_MS: 4500,      // drumroll reveal + result + commentary
+  ROUNDS: 8,            // default rounds per game
+  ROUND_OPTIONS: [6, 8, 10], // host can choose; all keep a game under 3 minutes
+  PICK_MS: 8000,        // time to secretly pick a number
+  REVEAL_MS: 6000,      // reveal + who won + commentary stays on screen
   LOSER_MS: 10000,      // last-place player chooses the next rule
   BOT_CHOOSE_MS: 1200,  // how long a bot "thinks" before choosing a rule
   MIN_PLAYERS: 3,       // bots fill seats up to this number

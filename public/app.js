@@ -192,8 +192,10 @@ function renderLobby() {
       ${S.isPublic
         ? `<p class="center">Starting in <b data-countdown>5</b>s… bots fill empty seats.</p>${timerBar()}`
         : isHost
-          ? `<button class="big" data-act="start">▶ Start game</button><p class="muted small center">Bots join if you're fewer than 3.</p>`
-          : `<p class="center muted">Waiting for the host to start…</p>`}
+          ? `<h2>Rounds</h2>
+             <div class="row seg">${S.roundOptions.map((n) => `<button class="${n === S.rounds ? '' : 'secondary'}" data-act="rounds" data-n="${n}">${n}</button>`).join('')}</div>
+             <button class="big" data-act="start">▶ Start ${S.rounds}-round game</button><p class="muted small center">Bots join if you're fewer than 3.</p>`
+          : `<p class="center muted">${S.rounds} rounds · Waiting for the host to start…</p>`}
       <button class="secondary" data-act="leave">Leave</button>
     </div>`;
   document.querySelector('[data-act="share"]')?.setAttribute('data-link', link);
@@ -321,6 +323,7 @@ $app.addEventListener('click', async (e) => {
     if (readNick()) send({ t: 'join', code, nick });
   }
   else if (act === 'start') send({ t: 'start' });
+  else if (act === 'rounds') send({ t: 'rounds', n: Number(b.dataset.n) });
   else if (act === 'pick') {
     send({ t: 'pick', n: Number(b.dataset.n) });
     sound.lock(); navigator.vibrate?.(40);

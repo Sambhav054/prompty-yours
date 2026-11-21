@@ -17,6 +17,7 @@ function playOne(i) {
     });
     // A "human" who goes silent: exercises auto-pick and auto-choose.
     if (i % 2 === 0) { room.addHuman('silent-' + i, 'Silent'); room.disconnect('silent-' + i); }
+    room.rounds = FAST.ROUND_OPTIONS[i % 3];
     room.start();
   });
 }
@@ -25,8 +26,8 @@ let ok = 0;
 const ruleCount = {};
 for (let i = 0; i < GAMES; i++) {
   const r = await playOne(i);
-  if (r.round !== r.cfg.ROUNDS) throw new Error(`game ${i} ended at round ${r.round}`);
-  if (r.history.length !== r.cfg.ROUNDS) throw new Error(`game ${i} history ${r.history.length}`);
+  if (r.round !== r.rounds) throw new Error(`game ${i} ended at round ${r.round}`);
+  if (r.history.length !== r.rounds) throw new Error(`game ${i} history ${r.history.length}`);
   for (const id of r.history) {
     if (!RULES_BY_ID[id]) throw new Error(`unknown rule ${id}`);
     ruleCount[id] = (ruleCount[id] || 0) + 1;

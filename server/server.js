@@ -127,6 +127,9 @@ wss.on('connection', (ws) => {
       case 'start':
         if (room && room.hostId === ws.pid && room.phase === 'lobby') room.start();
         break;
+      case 'rounds':
+        if (room) room.setRounds(ws.pid, m.n);
+        break;
       case 'pick':
         if (room) room.pick(ws.pid, m.n);
         break;

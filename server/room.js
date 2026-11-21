@@ -38,6 +38,16 @@ export class Room {
     this.emptyTimer = null;
     this.history = []; // rule ids played, for the simulator
     this.ruleChosenBy = null; // last-place player who picked this round's rule (for revenge)
+    this.rounds = cfg.ROUNDS;
+  }
+
+  // Host picks the game length in the lobby (only allowed values).
+  setRounds(id, n) {
+    if (id !== this.hostId || (this.phase !== 'lobby' && this.phase !== 'end')) return;
+    n = Number(n);
+    if (!this.cfg.ROUND_OPTIONS.includes(n)) return;
+    this.rounds = n;
+    this.emit();
   }
 
   // ---------- timers ----------
@@ -242,7 +252,7 @@ export class Room {
     };
     this.setPhase('reveal', this.cfg.REVEAL_MS);
     this.later(this.cfg.REVEAL_MS, () => {
-      if (this.round >= this.cfg.ROUNDS) this.end();
+      if (this.round >= this.rounds) this.end();
       else this.loserPhase();
     });
     this.emit();
@@ -305,7 +315,8 @@ export class Room {
       isPublic: this.isPublic,
       phase: this.phase,
       round: this.round,
-      rounds: this.cfg.ROUNDS,
+      rounds: this.rounds,
+      roundOptions: this.cfg.ROUND_OPTIONS,
       jackpot: this.jackpot,
       you: forId,
       hostId: this.hostId,
