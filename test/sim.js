@@ -92,3 +92,14 @@ console.log('Rules played:', ruleCount);
   room.clearTimers(); room.cancelEmptyTimer();
   console.log('OK: host cancel, back-to-lobby, 10-player cap.');
 }
+
+// Public tables cannot be cancelled, only left.
+{
+  const room = new Room('PUBLIC', { isPublic: true, cfg: { ...FAST, PICK_MS: 5000 } });
+  room.addHuman('h', 'Host');
+  room.start();
+  room.cancel('h');
+  if (room.phase !== 'pick') throw new Error('public table was cancelled');
+  room.clearTimers(); room.cancelEmptyTimer();
+  console.log('OK: public tables cannot be cancelled.');
+}

@@ -175,7 +175,8 @@ export class Room {
 
   // Host stops a game in progress. Nothing is recorded; everyone returns to the lobby.
   cancel(id) {
-    if (id !== this.hostId || !['pick', 'reveal', 'choose'].includes(this.phase)) return;
+    // Only the host of a private room can cancel; public tables can only be left.
+    if (this.isPublic || id !== this.hostId || !['pick', 'reveal', 'choose'].includes(this.phase)) return;
     if (this.match) {
       this.match.game -= 1;
       if (this.match.game <= 0) this.match = null;

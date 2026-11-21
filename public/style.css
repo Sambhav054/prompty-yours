@@ -332,3 +332,46 @@ input:focus { border-color: var(--gold); }
 @media (max-width: 699px) { .fl.mid { display: none; } .fl { font-size: 1.6rem; } .hero-micro { letter-spacing: 0.1em; font-size: 0.72rem; } }
 /* Hero entrance moves only: the text is readable even if animations never run. */
 @keyframes heroIn { from { transform: translateY(16px); } }
+
+/* ---------- entry steps ---------- */
+.brand.small .wheel { width: 64px; height: 64px; }
+.brand.small .wordmark { font-size: 2.3rem; }
+.step-h { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; margin: 6px 0 0; }
+.whoami { display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 8px; border-radius: 999px; background: var(--felt-2); border: 1px solid var(--line); width: fit-content; }
+.whoami b { color: var(--gold); }
+.icon-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--felt-3); border: 1px solid var(--line); color: var(--paper); }
+.icon-btn .ic { width: 18px; height: 18px; }
+.choice-btn {
+  width: 100%; justify-content: flex-start; text-align: left; gap: 14px; padding: 18px 16px;
+  background: var(--felt-2); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow);
+}
+.choice-btn.primary { background: linear-gradient(180deg, #ffd67e, var(--gold) 60%, var(--gold-deep)); color: var(--felt); border: 0; }
+.choice-ic { width: 48px; height: 48px; flex: none; border-radius: 14px; display: grid; place-items: center; background: rgb(255 255 255 / 0.08); }
+.choice-btn.primary .choice-ic { background: rgb(25 21 38 / 0.12); }
+.choice-ic .ic { width: 24px; height: 24px; }
+.choice-txt { display: grid; gap: 3px; }
+.choice-txt b { font-family: var(--display); font-size: 1.3rem; font-weight: 800; }
+.choice-txt small { font-weight: 500; font-size: 0.9rem; color: var(--muted); line-height: 1.35; }
+.choice-btn.primary small { color: rgb(25 21 38 / 0.75); }
+.back { width: fit-content; padding: 6px 10px 6px 4px; background: transparent; color: var(--muted); font-weight: 600; }
+.or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 0.85rem; }
+.or::before, .or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+
+/* ---------- in-game confirm sheet ---------- */
+.sheet-wrap { position: fixed; inset: 0; z-index: 20; display: grid; align-items: end; justify-items: center; padding: 16px; background: rgb(10 8 18 / 0.66); animation: fadeIn 0.2s ease-out both; }
+.sheet { width: 100%; max-width: 440px; padding: 22px 18px 18px; border-radius: var(--r-lg); background: var(--felt-2); border: 1px solid var(--line); box-shadow: 0 -10px 40px -10px rgb(0 0 0 / 0.6); display: grid; gap: 10px; animation: sheetUp 0.35s var(--ease-out) both; }
+.sheet h2 { margin: 0; font-size: 1.35rem; }
+.sheet p { color: var(--muted); margin-bottom: 8px; }
+.act.danger.solid { background: var(--red); color: #fff; border-color: var(--red); }
+@keyframes fadeIn { from { opacity: 0; } }
+@keyframes sheetUp { from { transform: translateY(24px); } }
+
+/* ---------- hero type scale (display / subhead / body / label / micro) ---------- */
+.hero-h { font-size: clamp(2.85rem, 13.2vw, 6rem); letter-spacing: -0.035em; gap: 14px; line-height: 0.9; }
+.hero-sub { color: #fff; font-family: var(--display); font-weight: 700; white-space: nowrap; font-size: clamp(1rem, 4.6vw, 1.5rem); letter-spacing: -0.01em; margin-top: 4px; animation: heroIn 0.6s 0.45s var(--ease-out) both; }
+.hero-p { font-size: 1.0625rem; line-height: 1.6; max-width: 36ch; }
+.hero-lead { font-size: 0.9rem; letter-spacing: 0.1em; margin-top: 14px; }
+.hero-btn { font-size: 1.5rem; padding: 20px 48px; }
+/* keep every entry step inside the phone width */
+.home { grid-template-columns: minmax(0, 1fr); }
+.step-h { display: block; text-wrap: balance; }

@@ -155,6 +155,10 @@ const ICONS = {
   trophy: '<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>',
   coin: '<circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10h4a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4"/>',
   stop: '<circle cx="12" cy="12" r="9"/><path d="M9 9h6v6H9z"/>',
+  pencil: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  arrow: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  back: '<path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
   users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
 };
 const ic = (name, cls = '') =>
@@ -191,8 +195,8 @@ function renderLanding() {
       <div class="hero-in">
         ${wheel('spin hero-wheel')}
         <h1 class="hero-h"><span class="l1">Think you can win?</span><span class="l2">Think again.</span></h1>
-        <p class="hero-p">Pick your number. Take your chances. Watch the madness unfold!</p>
-        <p class="hero-p">Score points, outplay your friends, but remember… the loser gets to choose the next rule!</p>
+        <p class="hero-sub">Pick your number. Take your chances.</p>
+        <p class="hero-p">Watch the madness unfold! Score points, outplay your friends, but remember… the loser gets to choose the next rule!</p>
         <p class="hero-lead">Ready to roll the chaos?</p>
         <button class="hero-btn" data-act="enter">Let's play!</button>
       </div>
@@ -209,7 +213,7 @@ function topbar() {
     <span class="tag gold">${ic('coin')} <b>${S.jackpot}</b></span>
     <span class="tag dim">${esc(S.code)}</span>
     <div class="actions">
-      ${S.hostId === pid ? `<button class="act danger" data-act="cancel">${ic('stop')} Cancel game</button>` : ''}
+      ${S.hostId === pid && !S.isPublic ? `<button class="act danger" data-act="cancel">${ic('stop')} Cancel game</button>` : ''}
       <button class="act" data-act="exit">${ic('door')} Exit</button>
     </div>
   </header>`;
@@ -224,28 +228,81 @@ function chips(showLock) {
     .join('')}</ul>`;
 }
 
+// Entry flow, one decision per step: name → how to play → (friends) create or join.
+let homeStep = nick ? (urlRoom ? 'room' : 'mode') : 'name';
+
+function playingAs() {
+  return `<div class="whoami"><span class="ava">🙂</span><span>Playing as <b>${esc(nick)}</b></span>
+    <button class="icon-btn" data-act="editName" aria-label="Edit your name">${ic('pencil')}</button></div>`;
+}
+
 function renderHome() {
-  $app.innerHTML = `
-    <section class="home">
-      <div class="brand">
-        ${wheel('spin')}
-        <h1 class="wordmark">Rule<br><span>Roulette</span></h1>
-      </div>
-      <p class="lede">Everyone secretly picks 1 to 10. Then the rule drops, and it changes every round. Come last, and you choose the next one.</p>
+  const brand = `<div class="brand small">${wheel('spin')}<h1 class="wordmark">Rule<br><span>Roulette</span></h1></div>`;
+  let body = '';
+  if (homeStep === 'name') {
+    body = `
+      <h2 class="step-h">What should we call you?</h2>
       <label class="field"><span>Your name</span>
-        <input id="nick" maxlength="14" placeholder="e.g. Asha" value="${esc(nick)}" autocomplete="nickname" />
+        <input id="nick" maxlength="14" placeholder="e.g. Asha" value="${esc(nick)}" autocomplete="nickname" enterkeyhint="go" />
       </label>
-      <button class="cta" data-act="quick">${ic('bolt')} Play now</button>
-      <div class="split">
-        <button class="alt" data-act="create">Create room</button>
-        <div class="join">
-          <input id="code" class="code-input" maxlength="4" placeholder="CODE" aria-label="Room code" value="${esc(urlRoom || '')}" />
-          <button class="alt" data-act="join">Join</button>
-        </div>
-      </div>
-      <p class="fine">${connected ? 'No sign-up. Just a name. 2–10 players, bots fill empty seats.' : '<span class="pulse"></span> Waking the table up…'}</p>
-    </section>`;
-  if (urlRoom) document.getElementById('code').focus();
+      <button class="cta" data-act="saveName">Continue ${ic('arrow')}</button>
+      <p class="fine">No sign-up. Just a name.</p>`;
+  } else if (homeStep === 'mode') {
+    body = `
+      ${playingAs()}
+      <h2 class="step-h">How do you want to play?</h2>
+      <button class="choice-btn primary" data-act="quick">
+        <span class="choice-ic">${ic('bolt')}</span>
+        <span class="choice-txt"><b>Play now</b><small>Join a random table. Bots fill the empty seats.</small></span>
+      </button>
+      <button class="choice-btn" data-act="toRoom">
+        <span class="choice-ic">${ic('users')}</span>
+        <span class="choice-txt"><b>Play with friends</b><small>Create a private room or join one with a code.</small></span>
+      </button>`;
+  } else {
+    body = `
+      ${playingAs()}
+      <button class="back" data-act="toMode">${ic('back')} Back</button>
+      <h2 class="step-h">Play with friends</h2>
+      <button class="choice-btn primary" data-act="create">
+        <span class="choice-ic">${ic('plus')}</span>
+        <span class="choice-txt"><b>Create a room</b><small>Get a 4-letter code to share. Up to 10 players.</small></span>
+      </button>
+      <div class="or"><span>or join with a code</span></div>
+      <div class="join">
+        <input id="code" class="code-input" maxlength="4" placeholder="CODE" aria-label="Room code" value="${esc(urlRoom || '')}" autocapitalize="characters" enterkeyhint="go" />
+        <button class="alt" data-act="join">Join</button>
+      </div>`;
+  }
+  $app.innerHTML = `<section class="home">${brand}${body}
+    ${connected ? '' : '<p class="fine"><span class="pulse"></span> Waking the table up…</p>'}</section>`;
+  if (homeStep === 'name') document.getElementById('nick')?.focus();
+  if (homeStep === 'room' && urlRoom) document.getElementById('code')?.focus();
+}
+
+// In-game confirmation sheet (replaces the browser's confirm box).
+function askConfirm({ title, body, ok, danger = false }) {
+  return new Promise((resolve) => {
+    document.querySelector('.sheet-wrap')?.remove();
+    const wrap = document.createElement('div');
+    wrap.className = 'sheet-wrap';
+    wrap.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-t">
+      <h2 id="sheet-t">${esc(title)}</h2><p>${esc(body)}</p>
+      <div class="split two">
+        <button class="alt" data-sheet="no">Stay</button>
+        <button class="${danger ? 'act danger solid' : 'cta'}" data-sheet="yes">${esc(ok)}</button>
+      </div></div>`;
+    const close = (v) => { wrap.remove(); document.removeEventListener('keydown', onKey); resolve(v); };
+    const onKey = (e) => { if (e.key === 'Escape') close(false); };
+    wrap.addEventListener('click', (e) => {
+      if (e.target === wrap) return close(false);
+      const b = e.target.closest('[data-sheet]');
+      if (b) close(b.dataset.sheet === 'yes');
+    });
+    document.addEventListener('keydown', onKey);
+    document.body.appendChild(wrap);
+    wrap.querySelector('[data-sheet="no"]').focus();
+  });
 }
 
 function renderLobby() {
@@ -438,11 +495,17 @@ $app.addEventListener('click', async (e) => {
   sound.unlock();
   const act = b.dataset.act;
   const readNick = () => {
-    const v = (document.getElementById('nick')?.value || '').trim().slice(0, 14);
+    const el = document.getElementById('nick');
+    if (!el && nick) return nick; // name already saved on this phone
+    const v = (el?.value || '').trim().slice(0, 14);
     if (!v) { toast('Type your name first 🙂'); document.getElementById('nick')?.focus(); return null; }
     nick = v; store.set('rr_nick', v); return v;
   };
-  if (act === 'quick') { if (readNick()) send({ t: 'quick', nick }); }
+  if (act === 'saveName') { if (readNick()) { homeStep = urlRoom ? 'room' : 'mode'; render(); } }
+  else if (act === 'editName') { homeStep = 'name'; render(); }
+  else if (act === 'toRoom') { homeStep = 'room'; render(); }
+  else if (act === 'toMode') { homeStep = 'mode'; render(); }
+  else if (act === 'quick') { if (readNick()) send({ t: 'quick', nick }); }
   else if (act === 'create') { if (readNick()) send({ t: 'create', nick }); }
   else if (act === 'join') {
     const code = (document.getElementById('code')?.value || '').trim().toUpperCase();
@@ -460,11 +523,11 @@ $app.addEventListener('click', async (e) => {
   else if (act === 'rematch') send({ t: 'rematch' });
   else if (act === 'enter') { entered = true; render(); document.getElementById('nick')?.focus(); }
   else if (act === 'cancel') {
-    if (confirm('Cancel this game for everyone? Scores will not count.')) send({ t: 'cancel' });
+    if (await askConfirm({ title: 'Cancel this game?', body: 'Everyone goes back to the lobby and the scores will not count.', ok: 'Cancel game', danger: true })) send({ t: 'cancel' });
   }
   else if (act === 'toLobby') send({ t: 'lobby' });
   else if (act === 'exit') {
-    if (confirm('Leave this game? Bots will take your picks.')) {
+    if (await askConfirm({ title: 'Leave this game?', body: 'You will lose your seat. The game carries on without you.', ok: 'Leave', danger: true })) {
       send({ t: 'leave' }); S = null; currentCode = null; store.del('rr_room'); render();
     }
   }
@@ -486,7 +549,7 @@ async function shareText(text, url) {
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && document.activeElement?.id === 'code') document.querySelector('[data-act="join"]')?.click();
-  if (e.key === 'Enter' && document.activeElement?.id === 'nick') document.querySelector('[data-act="quick"]')?.click();
+  if (e.key === 'Enter' && document.activeElement?.id === 'nick') document.querySelector('[data-act="saveName"]')?.click();
 });
 
 render();
