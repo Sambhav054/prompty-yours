@@ -287,16 +287,40 @@ function renderChoose() {
 
 function renderEnd() {
   const lb = S.leaderboard || [];
-  const top = lb[0];
-  const youWon = top && top.id === pid;
+  const m = S.match;
+  const name = (id, nick) => (id === pid ? 'You' : nick);
   const myRank = lb.findIndex((p) => p.id === pid) + 1;
+  const gw = m?.gameWinnerId ? lb.find((p) => p.id === m.gameWinnerId) : null;
+
+  // Headline: the match champion if the best-of-3 is decided, otherwise this game's result.
+  let head, sub;
+  if (m?.over) {
+    const champ = m.championId === pid;
+    head = champ ? '🏆 You are the champion!' : `🏆 ${esc(m.championNick)} is the champion!`;
+    sub = champ ? 'Best of 3, decided. Bragging rights are yours.' : `Best of 3, decided. You finished #${myRank} this game.`;
+  } else {
+    head = gw ? (gw.id === pid ? 'You won this game!' : `${esc(gw.nick)} wins this game`) : 'Tied at the top!';
+    sub = gw ? `Game ${m.game} of ${m.of} · first to 2 wins takes the match` : 'Nobody takes the match point this time.';
+  }
+
+  const standings = m ? `<div class="match">${m.standings.filter((s) => s.wins > 0 || s.id === pid).slice(0, 4)
+    .map((s) => `<span class="mchip ${s.id === m.championId ? 'champ' : ''}">${esc(s.emoji)} ${esc(name(s.id, s.nick))} ${'★'.repeat(s.wins)}${'☆'.repeat(Math.max(0, 2 - s.wins))}</span>`).join('')}</div>` : '';
+
+  const grudges = (S.grudges || []).map((g) => {
+    const lead = g.you > g.them ? 'You lead' : g.you < g.them ? `${esc(g.oppNick)} leads` : 'All square';
+    const cta = g.you < g.them ? ' Revenge?' : g.you === g.them ? ' Settle it.' : '';
+    return `<div class="grudge"><span>${esc(g.oppEmoji)} You vs ${esc(g.oppNick)}</span><b>${g.you}–${g.them}</b><span class="muted small">${lead}.${cta}</span></div>`;
+  }).join('');
+
   $app.innerHTML = `
     <div class="stack">
-      <h1 class="center">${youWon ? '🏆 You won!' : `🏆 ${esc(top?.nick)} wins!`}</h1>
-      <p class="center muted">${youWon ? 'Pure skill. Obviously.' : `You came #${myRank}. The rule was clearly against you.`}</p>
+      <h1 class="center ${m?.over ? 'pop' : ''}">${head}</h1>
+      <p class="center muted">${sub}</p>
+      ${standings}
       <div class="lb">${lb.map((p, i) => `<div class="item ${i === 0 ? 'first' : ''}">
-        <span>${i + 1}. ${esc(p.emoji)} ${esc(p.id === pid ? 'You' : p.nick)}</span><b>${p.score}</b></div>`).join('')}</div>
-      <button class="big" data-act="rematch">🔁 Rematch</button>
+        <span>${i + 1}. ${esc(p.emoji)} ${esc(name(p.id, p.nick))}</span><b>${p.score}</b></div>`).join('')}</div>
+      ${grudges ? `<h2>Rivalries</h2><div class="grudges">${grudges}</div>` : ''}
+      <button class="big" data-act="rematch">${m && !m.over ? `▶ Game ${m.game + 1} of ${m.of}` : '🔁 New match'}</button>
       <div class="row">
         <button class="secondary" data-act="shareResult">📤 Share</button>
         <button class="secondary" data-act="leave">Leave</button>

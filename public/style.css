@@ -107,3 +107,10 @@ button:active:not(:disabled) { transform: scale(0.97); }
 .reveal-item.tie { outline: 2px dashed var(--muted); }
 .banner { background: var(--accent); color: #1a1726; font-weight: 900; text-align: center; border-radius: 12px; padding: 10px; margin-top: 10px; font-size: 1.2rem; }
 .miss { text-align: center; color: var(--blue); font-weight: 600; margin-top: 8px; }
+.match { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.mchip { background: var(--card2); border-radius: 999px; padding: 6px 12px; font-size: 0.95rem; }
+.mchip.champ { background: var(--accent); color: #1a1726; font-weight: 800; }
+.grudges { display: grid; gap: 8px; }
+.grudge { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; background: var(--card); border-radius: 12px; padding: 10px 14px; }
+.grudge b { font-size: 1.3rem; color: var(--accent); }
+.grudge .small { grid-column: 1 / -1; }
