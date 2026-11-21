@@ -149,3 +149,42 @@ test('findLoser picks among lowest', () => {
     assert.ok(['b', 'c'].includes(l.id));
   }
 });
+
+test('quirky: greedy-ten pays double, two 10s lose 10', () => {
+  const r = scoreRound(RULES_BY_ID['greedy-ten'], P(10, 3, 4), { jackpot: 0, streaks: {} });
+  assert.equal(r.deltas.p0, 20);
+  const c = scoreRound(RULES_BY_ID['greedy-ten'], P(10, 10, 4), { jackpot: 0, streaks: {} });
+  assert.equal(c.deltas.p0, -10);
+  assert.equal(c.deltas.p1, -10);
+});
+
+test('quirky: pays-its-number', () => {
+  const r = scoreRound(RULES_BY_ID['pays-its-number'], P(8, 3), { jackpot: 0, streaks: {} });
+  assert.equal(r.deltas.p0, 2); // +10 win, -8 paid
+});
+
+test('quirky: double-trouble, step-up, lonely, odd-one-out', () => {
+  assert.deepEqual(R('double-trouble', P(3, 6, 4, 8)).winners, ['p3']);
+  assert.deepEqual(R('double-trouble', P(3, 5, 7)).winners, []);
+  assert.deepEqual(R('step-up', P(4, 5, 9)).winners, ['p1']);
+  assert.deepEqual(R('lonely-number', P(1, 2, 10)).winners, ['p2']);
+  assert.deepEqual(R('odd-one-out', P(2, 4, 7)).winners, ['p2']);
+  assert.deepEqual(R('odd-one-out', P(1, 3, 2, 4)).winners, []);
+});
+
+test('quirky: bomb-four, one-banned, robin-hood, no-going-over-7', () => {
+  const b = R('bomb-four', P(4, 9, 6));
+  assert.deepEqual(b.winners, ['p1']);
+  assert.deepEqual(b.pointChanges, { p0: -5 });
+  assert.deepEqual(R('one-banned', P(1, 2, 5)).winners, ['p1']);
+  const rh = R('robin-hood', P(2, 9, 5));
+  assert.deepEqual(rh.winners, ['p0']);
+  assert.deepEqual(rh.pointChanges, { p1: -5 });
+  assert.deepEqual(R('no-going-over-7', P(8, 6, 10)).winners, ['p1']);
+});
+
+test('quirky: last-digit and crowd-count', () => {
+  // total 3+4+5 = 12 -> last digit 2 -> 3 is closest
+  assert.deepEqual(R('last-digit', P(3, 4, 5)).winners, ['p0']);
+  assert.deepEqual(R('crowd-count', P(3, 9, 1)).winners, ['p0']);
+});
