@@ -177,30 +177,46 @@ function wheel(cls = '') {
     <g class="ball-orbit"><circle class="ball" cx="50" cy="12" r="3.6" fill="#fff"/></g></svg>`;
 }
 
-// ---------- landing hero (first screen) ----------
+// ---------- landing: one big roulette wheel, the line revolves inside it, the hub is the button ----------
 let entered = !!(urlRoom || currentCode); // invite links and reconnects skip straight to the game
-const FLOATERS = [
-  ['7', 6, 14, 0], ['?', 86, 10, 1], ['3', 90, 42, 2], ['10', 4, 46, 3], ['?', 12, 78, 4], ['1', 84, 76, 5],
-  ['5', 48, 6, 6], ['9', 70, 90, 7], ['2', 26, 92, 8], ['?', 94, 60, 9], ['8', 2, 28, 10], ['4', 62, 18, 11],
-];
+function bigWheel() {
+  const C = 200;
+  const pt = (r, deg) => {
+    const a = (deg - 90) * (Math.PI / 180);
+    return `${(C + r * Math.cos(a)).toFixed(2)} ${(C + r * Math.sin(a)).toFixed(2)}`;
+  };
+  const pockets = Array.from({ length: 10 }, (_, i) => {
+    const a0 = i * 36, a1 = (i + 1) * 36, mid = a0 + 18, n = i + 1;
+    return `<path d="M${pt(186, a0)} A186 186 0 0 1 ${pt(186, a1)} L${pt(140, a1)} A140 140 0 0 0 ${pt(140, a0)}Z"
+        fill="${n % 2 ? 'var(--red)' : 'var(--ink-chip)'}" stroke="var(--gold-deep)" stroke-width="1.5"/>
+      <text x="${pt(163, mid).split(' ')[0]}" y="${pt(163, mid).split(' ')[1]}" transform="rotate(${mid} ${pt(163, mid)})"
+        class="pocket-n" text-anchor="middle" dominant-baseline="central">${n}</text>`;
+  }).join('');
+  return `<svg class="bigwheel" viewBox="0 0 400 400" role="img" aria-label="Rule Roulette. Think you can win? Think again.">
+    <defs>
+      <path id="ring-path" d="M200 200 m-112 0 a112 112 0 1 1 224 0 a112 112 0 1 1 -224 0"/>
+      <radialGradient id="rim" cx="50%" cy="40%" r="60%"><stop offset="0" stop-color="#ffe3a3"/><stop offset="0.6" stop-color="var(--gold)"/><stop offset="1" stop-color="var(--gold-deep)"/></radialGradient>
+    </defs>
+    <circle cx="200" cy="200" r="198" fill="url(#rim)"/>
+    <g class="pockets">${pockets}</g>
+    <circle cx="200" cy="200" r="140" fill="var(--felt-2)"/>
+    <circle cx="200" cy="200" r="138" fill="none" stroke="var(--line)" stroke-width="2"/>
+    <g class="ring-text">
+      <text class="ring-line"><textPath href="#ring-path" textLength="700" lengthAdjust="spacing"
+        ><tspan class="w">THINK YOU CAN WIN?</tspan><tspan class="dot"> ● </tspan><tspan class="g">THINK AGAIN.</tspan><tspan class="dot"> ● </tspan></textPath></text>
+    </g>
+    <circle cx="200" cy="200" r="88" fill="var(--felt)" stroke="var(--line)" stroke-width="2"/>
+    <g class="ball-orbit-big"><circle class="ball-big" cx="200" cy="20" r="7" fill="#fff"/></g>
+  </svg>`;
+}
 function renderLanding() {
-  const fl = FLOATERS.map(([t, x, y, i]) =>
-    `<span class="fl ${t === '?' ? 'q' : i % 3 === 0 ? 'g' : i % 3 === 1 ? 'w' : 'p'} ${y > 22 && y < 84 ? 'mid' : ''}" style="--x:${x}%;--y:${y}%;--d:${7 + (i % 5) * 1.3}s;--dl:${-i * 0.7}s;--r:${(i % 2 ? 1 : -1) * (8 + i)}deg">${t}</span>`).join('');
   $app.innerHTML = `
-    <section class="hero">
-      <div class="floaters" aria-hidden="true">${fl}
-        <span class="fl die mid" style="--x:80%;--y:28%;--d:9s;--dl:-2s;--r:24deg"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.6"/><circle cx="15.5" cy="15.5" r="1.6"/><circle cx="12" cy="12" r="1.6"/></svg></span>
-        <span class="fl die mid" style="--x:10%;--y:62%;--d:11s;--dl:-5s;--r:-18deg"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.6"/><circle cx="15.5" cy="8.5" r="1.6"/><circle cx="8.5" cy="15.5" r="1.6"/><circle cx="15.5" cy="15.5" r="1.6"/></svg></span>
+    <section class="stage">
+      <h1 class="sr-only">Rule Roulette: think you can win? Think again.</h1>
+      <div class="wheel-wrap">
+        ${bigWheel()}
+        <button class="hub" data-act="enter"><span>Let's<br>play!</span></button>
       </div>
-      <div class="hero-in">
-        ${wheel('spin hero-wheel')}
-        <h1 class="hero-h"><span class="l1">Think you can win?</span><span class="l2">Think again.</span></h1>
-        <p class="hero-sub">Pick your number. Take your chances.</p>
-        <p class="hero-p">Watch the madness unfold! Score points, outplay your friends, but remember… the loser gets to choose the next rule!</p>
-        <p class="hero-lead">Ready to roll the chaos?</p>
-        <button class="hero-btn" data-act="enter">Let's play!</button>
-      </div>
-      <p class="hero-micro">Up to 10 rounds. Endless chaos. One winner.</p>
     </section>`;
 }
 

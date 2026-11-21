@@ -297,41 +297,7 @@ input:focus { border-color: var(--gold); }
 @keyframes roll { 0% { transform: rotate(0deg); } 72%, 100% { transform: rotate(-1800deg); } }
 @keyframes drop { 0%, 45% { transform: translateY(-5px); } 70%, 92% { transform: translateY(4px); } 100% { transform: translateY(-5px); } }
 
-/* ---------- landing hero ---------- */
-.hero { position: relative; min-height: calc(100dvh - 54px); display: grid; grid-template-rows: 1fr auto; text-align: center; }
-.hero-in { position: relative; z-index: 1; align-self: center; display: grid; justify-items: center; gap: 14px; padding: 12px 0; }
-.hero-wheel { width: 84px; height: 84px; animation: spin 18s linear infinite, heroIn 0.8s var(--ease-out) both; }
-.hero-h { display: grid; gap: 6px; text-wrap: balance; text-transform: uppercase; font-weight: 800; letter-spacing: -0.03em; line-height: 0.92; font-size: clamp(2.4rem, 11.5vw, 5.4rem); }
-.hero-h .l1 { color: #fff; animation: heroIn 0.7s 0.1s var(--ease-out) both; }
-.hero-h .l2 { color: var(--gold); animation: heroIn 0.7s 0.28s var(--ease-out) both; }
-.hero-p { color: var(--muted); font-size: 1.05rem; line-height: 1.55; max-width: 32ch; animation: heroIn 0.6s 0.5s var(--ease-out) both; }
-.hero-p + .hero-p { animation-delay: 0.6s; }
-.hero-lead { margin-top: 10px; color: var(--gold); font-family: var(--display); font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.95rem; animation: heroIn 0.6s 0.75s var(--ease-out) both; }
-.hero-btn {
-  padding: 20px 44px; border-radius: 999px; font-family: var(--display); font-weight: 800; font-size: 1.45rem;
-  text-transform: uppercase; letter-spacing: 0.02em; color: var(--felt); background: var(--gold);
-  box-shadow: 0 14px 30px -12px rgb(255 200 87 / 0.6), var(--shadow);
-  animation: heroIn 0.6s 0.9s var(--ease-out) both; transition: transform 0.2s var(--ease-out), box-shadow 0.25s;
-}
-.hero-btn:hover { transform: scale(1.05); box-shadow: 0 0 0 6px rgb(255 200 87 / 0.18), 0 18px 40px -10px rgb(255 200 87 / 0.75); }
-.hero-micro { position: relative; z-index: 1; padding: 18px 0 4px; color: var(--muted); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.8; }
-.floaters { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
-.fl {
-  position: absolute; left: var(--x); top: var(--y); font-family: var(--display); font-weight: 800; font-size: 2rem;
-  animation: drift var(--d) ease-in-out var(--dl) infinite alternate; opacity: 0.5;
-}
-.fl.g { color: var(--gold); }
-.fl.w { color: #fff; opacity: 0.35; }
-.fl.p { color: #7d6fb0; }
-.fl.q { color: #9d8fd6; font-size: 2.4rem; }
-.fl.die svg { width: 34px; height: 34px; fill: none; stroke: var(--gold); stroke-width: 1.6; }
-.fl.die circle { fill: var(--gold); stroke: none; }
-@keyframes drift { from { transform: translate(0, 0) rotate(0deg); } to { transform: translate(10px, -16px) rotate(var(--r)); } }
-@media (min-width: 700px) { #app:has(.hero) { max-width: 980px; } .fl { font-size: 3rem; } .hero-p { max-width: 46ch; } }
 
-@media (max-width: 699px) { .fl.mid { display: none; } .fl { font-size: 1.6rem; } .hero-micro { letter-spacing: 0.1em; font-size: 0.72rem; } }
-/* Hero entrance moves only: the text is readable even if animations never run. */
-@keyframes heroIn { from { transform: translateY(16px); } }
 
 /* ---------- entry steps ---------- */
 .brand.small .wheel { width: 64px; height: 64px; }
@@ -366,12 +332,37 @@ input:focus { border-color: var(--gold); }
 @keyframes fadeIn { from { opacity: 0; } }
 @keyframes sheetUp { from { transform: translateY(24px); } }
 
-/* ---------- hero type scale (display / subhead / body / label / micro) ---------- */
-.hero-h { font-size: clamp(2.85rem, 13.2vw, 6rem); letter-spacing: -0.035em; gap: 14px; line-height: 0.9; }
-.hero-sub { color: #fff; font-family: var(--display); font-weight: 700; white-space: nowrap; font-size: clamp(1rem, 4.6vw, 1.5rem); letter-spacing: -0.01em; margin-top: 4px; animation: heroIn 0.6s 0.45s var(--ease-out) both; }
-.hero-p { font-size: 1.0625rem; line-height: 1.6; max-width: 36ch; }
-.hero-lead { font-size: 0.9rem; letter-spacing: 0.1em; margin-top: 14px; }
-.hero-btn { font-size: 1.5rem; padding: 20px 48px; }
 /* keep every entry step inside the phone width */
 .home { grid-template-columns: minmax(0, 1fr); }
 .step-h { display: block; text-wrap: balance; }
+
+/* ---------- landing: one wheel fills the screen ---------- */
+.stage { min-height: calc(100dvh - 54px); display: grid; place-items: center; }
+#app:has(.stage) { max-width: none; }
+.wheel-wrap { position: relative; width: min(96vw, 88dvh, 760px); aspect-ratio: 1; }
+.bigwheel { width: 100%; height: 100%; display: block; filter: drop-shadow(0 30px 50px rgb(0 0 0 / 0.55)); }
+.pockets, .ring-text, .ball-orbit-big { transform-origin: 200px 200px; }
+.pockets { animation: spin 40s linear infinite; }
+.pocket-n { fill: #fff; font-family: var(--display); font-weight: 800; font-size: 22px; }
+.ring-text { animation: spin 26s linear infinite reverse; }
+.ring-line { font-family: var(--display); font-weight: 800; font-size: 25px; letter-spacing: 0.02em; }
+.ring-line .w { fill: #fff; }
+.ring-line .g { fill: var(--gold); }
+.ring-line .dot { fill: var(--red); font-size: 14px; }
+.ball-orbit-big { animation: roll 7s cubic-bezier(0.12, 0.62, 0.25, 1) infinite; }
+.ball-big { animation: dropBig 7s ease-in-out infinite; filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.5)); }
+@keyframes dropBig { 0%, 45% { transform: translateY(-4px); } 70%, 92% { transform: translateY(14px); } 100% { transform: translateY(-4px); } }
+.hub {
+  position: absolute; left: 50%; top: 50%; width: 40%; aspect-ratio: 1; transform: translate(-50%, -50%);
+  border-radius: 50%; padding: 0; color: var(--felt);
+  background: radial-gradient(circle at 38% 32%, #ffe3a3, var(--gold) 45%, var(--gold-deep));
+  box-shadow: 0 0 0 6px rgb(25 21 38 / 0.9), 0 0 0 9px var(--gold-deep), 0 18px 40px -10px rgb(255 200 87 / 0.55);
+  font-family: var(--display); font-weight: 800; text-transform: uppercase; line-height: 0.95; letter-spacing: -0.01em;
+  font-size: clamp(1.4rem, 7.2vw, 3.2rem);
+  transition: transform 0.25s var(--ease-out), box-shadow 0.25s;
+  animation: hubPulse 2.4s ease-in-out infinite;
+}
+.hub:hover { transform: translate(-50%, -50%) scale(1.05); }
+.hub:active { transform: translate(-50%, -50%) scale(0.97); }
+@keyframes hubPulse { 50% { box-shadow: 0 0 0 6px rgb(25 21 38 / 0.9), 0 0 0 9px var(--gold-deep), 0 0 0 18px rgb(255 200 87 / 0.12), 0 18px 40px -10px rgb(255 200 87 / 0.7); } }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
