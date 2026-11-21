@@ -105,10 +105,7 @@ wss.on('connection', (ws) => {
         let target = [...rooms.values()].find((r) => r.isPublic && r.phase === 'lobby' && !r.isFull());
         if (!target) {
           target = createRoom(true);
-          target.quickStartAt = Date.now() + CONFIG.QUICK_FILL_MS;
-          setTimeout(() => {
-            if (rooms.has(target.code) && target.phase === 'lobby' && target.connectedHumans().length) target.start();
-          }, CONFIG.QUICK_FILL_MS);
+          target.scheduleQuickStart();
         }
         enter(ws, target, cleanNick(m.nick));
         break;
@@ -136,8 +133,14 @@ wss.on('connection', (ws) => {
       case 'choose':
         if (room) room.chooseRule(ws.pid, m.ruleId);
         break;
-      case 'rematch':
-        if (room && room.phase === 'end') room.start();
+      case 'rematch': // host skips the results countdown and deals the next game now
+        if (room && room.phase === 'end' && room.hostId === ws.pid) room.start();
+        break;
+      case 'lobby': // host takes everyone back to the lobby early
+        if (room && room.phase === 'end' && room.hostId === ws.pid) room.toLobby();
+        break;
+      case 'cancel':
+        if (room) room.cancel(ws.pid);
         break;
       case 'leave':
         leaveCurrent(ws);

@@ -148,6 +148,44 @@ export class Room {
     this.emptyTimer = null;
   }
 
+  // ---------- lobby ----------
+  // Public tables deal in automatically: wait a few seconds for strangers, then bots fill the seats.
+  scheduleQuickStart() {
+    if (!this.isPublic) return;
+    this.quickStartAt = Date.now() + this.cfg.QUICK_FILL_MS;
+    this.later(this.cfg.QUICK_FILL_MS, () => {
+      if (this.phase === 'lobby' && this.connectedHumans().length) this.start();
+    });
+  }
+
+  // Back to the room lobby: bots leave (they refill on start), new people can join, host starts the next game.
+  toLobby() {
+    this.clearTimers();
+    this.players = this.players.filter((p) => !p.bot && p.connected);
+    if (!this.get(this.hostId)) this.hostId = this.players[0]?.id || null;
+    this.picks = new Map();
+    this.choice = null;
+    this.rule = null;
+    this.round = 0;
+    this.jackpot = 0;
+    this.setPhase('lobby', 0);
+    this.scheduleQuickStart();
+    this.emit();
+  }
+
+  // Host stops a game in progress. Nothing is recorded; everyone returns to the lobby.
+  cancel(id) {
+    if (id !== this.hostId || !['pick', 'reveal', 'choose'].includes(this.phase)) return;
+    if (this.match) {
+      this.match.game -= 1;
+      if (this.match.game <= 0) this.match = null;
+    }
+    this.lastGame = null;
+    this.notice = 'The host cancelled the game.';
+    this.toLobby();
+    this.notice = null;
+  }
+
   // ---------- game flow ----------
   start() {
     if (this.phase !== 'lobby' && this.phase !== 'end') return;
@@ -306,7 +344,9 @@ export class Room {
     const lb = this.leaderboard();
     this.recordGrudges(lb);
     this.recordMatch(lb);
-    this.setPhase('end', 0);
+    this.lastGame = { leaderboard: lb, gameWinnerId: this.match?.gameWinnerId || null };
+    this.setPhase('end', this.cfg.END_MS);
+    this.later(this.cfg.END_MS, () => this.toLobby());
     this.emit();
     this.onEnd(this);
   }
@@ -421,7 +461,10 @@ export class Room {
         : null,
       leaderboard: this.phase === 'end' ? this.leaderboard() : null,
       match: this.matchView(),
-      grudges: this.phase === 'end' ? this.grudgesFor(forId) : [],
+      grudges: this.phase === 'end' || this.phase === 'lobby' ? this.grudgesFor(forId) : [],
+      lastGame: this.phase === 'lobby' ? this.lastGame || null : null,
+      maxPlayers: this.cfg.MAX_PLAYERS,
+      notice: this.notice || null,
     };
   }
 }

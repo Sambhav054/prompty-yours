@@ -7,8 +7,9 @@ export const CONFIG = {
   LOSER_MS: 10000,      // last-place player chooses the next rule
   BOT_CHOOSE_MS: 1200,  // how long a bot "thinks" before choosing a rule
   MIN_PLAYERS: 3,       // bots fill seats up to this number
-  MAX_PLAYERS: 6,
+  MAX_PLAYERS: 10,
   QUICK_FILL_MS: 5000,  // quick match waits this long for humans, then bots fill
+  END_MS: 12000,        // results screen, then everyone returns to the room lobby
   ROUND_POINTS: 10,     // round winner gets this
   STREAK_BONUS: 5,      // extra for 3+ wins in a row
   REVENGE_BONUS: 10,    // last-place player picks a rule, then wins with it

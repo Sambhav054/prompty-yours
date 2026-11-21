@@ -72,3 +72,23 @@ console.log('Rules played:', ruleCount);
   }
   console.log(`OK: ${decided}/20 best-of-3 matches decided, grudges recorded, new match resets.`);
 }
+
+// Host cancel + return to lobby: bots leave, the room accepts newcomers, match game is rolled back.
+{
+  const room = new Room('CANCEL', { cfg: { ...FAST, PICK_MS: 5000, END_MS: 30 } });
+  room.addHuman('host', 'Host');
+  room.start();
+  if (room.phase !== 'pick' || room.players.length < 3) throw new Error('did not start with bots');
+  room.cancel('someone-else');
+  if (room.phase !== 'pick') throw new Error('non-host was able to cancel');
+  room.cancel('host');
+  if (room.phase !== 'lobby') throw new Error('cancel did not return to lobby');
+  if (room.players.some((p) => p.bot)) throw new Error('bots stayed after cancel');
+  if (room.match !== null) throw new Error('cancelled game counted toward the match');
+  if (!room.addHuman('late', 'Latecomer').ok) throw new Error('newcomer could not join lobby');
+  for (let i = 0; i < 8; i++) room.addHuman('x' + i, 'P' + i);
+  if (room.players.length !== 10) throw new Error(`expected 10 players, got ${room.players.length}`);
+  if (room.addHuman('eleven', 'Eleven').ok) throw new Error('11th player was let in');
+  room.clearTimers(); room.cancelEmptyTimer();
+  console.log('OK: host cancel, back-to-lobby, 10-player cap.');
+}
