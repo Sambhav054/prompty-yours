@@ -74,15 +74,36 @@ test('lucky-seven', () => {
   assert.deepEqual(R('lucky-seven', P(1, 2)).winners, []);
 });
 
-test('odd-only', () => {
-  assert.deepEqual(R('odd-only', P(1, 2, 3)).winners, ['p0', 'p2']);
+test('odd-only: highest odd wins', () => {
+  assert.deepEqual(R('odd-only', P(1, 2, 3, 10)).winners, ['p2']);
   assert.deepEqual(R('odd-only', P(2, 4)).winners, []);
 });
 
-test('no-twins', () => {
-  const r = R('no-twins', P(3, 3, 9));
-  assert.deepEqual(r.winners, ['p2']);
+test('no-twins: twins lose 5, highest lone number wins', () => {
+  const r = R('no-twins', P(9, 9, 3, 5));
+  assert.deepEqual(r.winners, ['p3']);
   assert.deepEqual(r.pointChanges, { p0: -5, p1: -5 });
+  assert.deepEqual(R('no-twins', P(4, 4)).winners, []);
+});
+
+test('engine: ties cancel out and feed the jackpot', () => {
+  // Two players both pick 5 on "closest to 5": nobody scores.
+  const r = scoreRound(RULES_BY_ID['closest-to-5'], P(5, 5, 1), { jackpot: 0, streaks: {} });
+  assert.deepEqual(r.winners, []);
+  assert.deepEqual(r.tied, ['p0', 'p1']);
+  assert.equal(r.deltas.p0, 0);
+  assert.equal(r.deltas.p1, 0);
+  assert.equal(r.jackpot, 10);
+});
+
+test('engine: every rule gives at most one winner on random picks', () => {
+  for (const rule of RULES) {
+    for (let i = 0; i < 300; i++) {
+      const picks = P(...Array.from({ length: 2 + (i % 5) }, () => 1 + Math.floor(Math.random() * 10)));
+      const r = scoreRound(rule, picks, { jackpot: 0, streaks: {} });
+      assert.ok(r.winners.length <= 1, `${rule.id} gave ${r.winners.length} winners`);
+    }
+  }
 });
 
 test('last-to-lock', () => {

@@ -88,26 +88,30 @@ export const RULES = [
   {
     id: 'odd-only',
     type: 'chaos',
-    text: 'Only ODD numbers score',
-    smart: () => [1, 3, 5, 7, 9][rand(0, 4)],
+    text: 'Highest ODD number wins',
+    smart: () => [5, 7, 9][rand(0, 2)],
     resolve(picks) {
-      const odd = idsWhere(picks, (p) => p.n % 2 === 1);
+      const odd = picks.filter((p) => p.n % 2 === 1);
       if (!odd.length) return none('All even. Nobody scores!');
-      return win(odd, 'Odd numbers take the points');
+      const max = Math.max(...odd.map((p) => p.n));
+      return win(idsWhere(odd, (p) => p.n === max), `${max} was the highest odd number`);
     },
   },
   {
     id: 'no-twins',
     type: 'chaos',
-    text: 'Same number as someone? You LOSE 5',
-    smart: () => rand(1, 10),
+    text: 'Highest wins. Matching someone? You LOSE 5',
+    smart: () => rand(6, 10),
     resolve(picks) {
       const c = countOf(picks);
       const pc = {};
       for (const p of picks) if (c.get(p.n) > 1) pc[p.id] = -5;
-      const solo = idsWhere(picks, (p) => c.get(p.n) === 1);
+      const solo = picks.filter((p) => c.get(p.n) === 1);
       const clashes = Object.keys(pc).length;
-      return win(solo, clashes ? `${clashes} copycats lose 5` : 'No twins. Everyone wins!', pc);
+      const note = clashes ? `${clashes} matched and lose 5. ` : '';
+      if (!solo.length) return win([], `${note}Nobody stood alone.`, pc);
+      const max = Math.max(...solo.map((p) => p.n));
+      return win(idsWhere(solo, (p) => p.n === max), `${note}${max} was the highest lone number`, pc);
     },
   },
   {

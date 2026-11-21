@@ -5,7 +5,14 @@ import { CONFIG } from './config.js';
 // returns { winners, deltas: {id: n}, notes, jackpot }  (does not mutate state)
 export function scoreRound(rule, picks, state, cfg = CONFIG) {
   const res = rule.resolve(picks) || { winners: [], pointChanges: {}, notes: '' };
-  const winners = [...new Set(res.winners || [])];
+  let winners = [...new Set(res.winners || [])];
+  let notes = res.notes || '';
+  // House rule: one winner per round. A tie cancels out and the points roll into the jackpot.
+  const tied = winners.length > 1 ? winners : [];
+  if (tied.length) {
+    winners = [];
+    notes = `${tied.length} players tied, so they cancel out.`;
+  }
   const deltas = {};
   for (const p of picks) deltas[p.id] = 0;
   for (const [id, d] of Object.entries(res.pointChanges || {})) deltas[id] = (deltas[id] || 0) + d;
@@ -25,7 +32,7 @@ export function scoreRound(rule, picks, state, cfg = CONFIG) {
   }
   for (const p of picks) if (!winners.includes(p.id)) streaks[p.id] = 0;
 
-  return { winners, deltas, notes: res.notes || '', jackpot, streaks };
+  return { winners, tied, deltas, notes, jackpot, streaks };
 }
 
 // Last place = lowest score. Ties broken at random.
