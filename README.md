@@ -18,9 +18,9 @@ Everyone secretly picks a number from 1 to 10. Then the rule drops, and it's dif
 
 - **Play now:** a random table where bots fill empty seats after 5 seconds, so a stranger can always play, even alone.
 - **Play with friends:** create a room and share the 4-letter code, up to 10 players. The host picks 6, 8 or 10 rounds and can cancel; public tables can only be left.
-- **128 rules in 14 categories, every one decided only by what players pick (no secret random numbers):**
-  - 81 from the team's v3 rulebook: greed, alone-or-together, crowd, averages, favourite numbers, revenge, nerves, wild cards and dares. Rules where the game draws a hidden number (snakes, lucky stars, dice, coin, raffle, hot seat) were removed.
-  - 47 hand-picked cards from the 500-card book: Plot Twist, Greed & Regret, Neighbours, Stand Alone and Find Your Twin. For each family we kept the clearest one to three cards and skipped the near-duplicates.
+- **102 rules in 13 categories. Every one is decided only by what players pick, and only ONE player can gain points per round, with a number nobody else picked (same numbers cancel, never share):**
+  - 59 from the team's v3 rulebook: greed, alone-or-together, crowd, averages, favourite numbers, revenge, nerves, wild cards and dares. Rules where the game draws a hidden number (snakes, lucky stars, dice, coin, raffle, hot seat) were removed.
+  - 43 hand-picked cards from the 500-card book: Plot Twist, Greed & Regret, Neighbours and Stand Alone. For each family we kept the clearest one to three cards and skipped the near-duplicates.
 - **No repeats:**
   - Every round of a game comes from a **different category**.
   - No rule repeats within a **best-of-3 match** (30 rules).
@@ -55,7 +55,7 @@ Everyone secretly picks a number from 1 to 10. Then the rule drops, and it's dif
 ```
 npm install
 npm start          # http://localhost:3000
-npm test           # 280 tests: every rule on edge cases, scoring, no-repeat, categories
+npm test           # 256 tests, including every rule on 1,500 random tables: every rule on edge cases, scoring, no-repeat, categories
 npm run sim        # plays 100+ full games with bots: matches, cancel, 10-player cap, fairness
 ```
 

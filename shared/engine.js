@@ -15,24 +15,28 @@ export function decide(rule, picks, ctx = {}) {
   if (r1.group) return { pointChanges: { ...(r1.pointChanges || {}) }, knocked: [], tied: [], winners: [], notes: r1.notes || '', group: true, jackpotX2: r1.jackpotX2 };
   const w1 = uniq(r1.winners);
   const base = { pointChanges: { ...(r1.pointChanges || {}) }, knocked: [], tied: [], jackpotX2: r1.jackpotX2 };
-  if (w1.length <= 1) return { ...base, winners: w1, notes: r1.notes || '' };
-
   const count = new Map();
   for (const p of picks) count.set(p.n, (count.get(p.n) || 0) + 1);
+  const numOf = (id) => picks.find((p) => p.id === id)?.n;
+  // A single winner only stands if nobody else picked the same number (e.g. "first to lock in"
+  // with a shared number): a shared number is always knocked out, never rewarded.
+  if (w1.length === 0 || (w1.length === 1 && count.get(numOf(w1[0])) === 1)) return { ...base, winners: w1, notes: r1.notes || '' };
   const knocked = picks.filter((p) => count.get(p.n) > 1).map((p) => p.id);
   const rest = picks.filter((p) => count.get(p.n) === 1);
   if (knocked.length && rest.length) {
     const r2 = rule.resolve(rest, ctx) || { winners: [] };
     const w2 = uniq(r2.winners);
     if (w2.length === 1) {
-      const pc = { ...base.pointChanges };
+      // Keep only penalties from the first pass; bonuses belonged to players who were knocked out.
+      const pc = Object.fromEntries(Object.entries(base.pointChanges).filter(([, v]) => v < 0));
       delete pc[w2[0]];
       if (r2.pointChanges?.[w2[0]]) pc[w2[0]] = r2.pointChanges[w2[0]];
       const nums = uniq(picks.filter((p) => knocked.includes(p.id)).map((p) => p.n)).join(', ');
       return { pointChanges: pc, knocked, tied: [], winners: w2, jackpotX2: r1.jackpotX2, notes: `Matching ${nums} knocked each other out. ${r2.notes || ''}`.trim() };
     }
   }
-  return { ...base, winners: [], tied: w1, notes: `${w1.length} players tied, so they cancel out.` };
+  const penalties = Object.fromEntries(Object.entries(base.pointChanges).filter(([, v]) => v < 0));
+  return { ...base, pointChanges: penalties, winners: [], tied: w1, notes: `${w1.length} players tied, so they cancel out.` };
 }
 
 // state: { streaks: {id: n}, jackpot: n }
@@ -43,6 +47,9 @@ export function scoreRound(rule, picks, state, cfg = CONFIG, ctx = {}) {
   const deltas = {};
   for (const p of picks) deltas[p.id] = 0;
   for (const [id, d] of Object.entries(res.pointChanges || {})) deltas[id] = (deltas[id] || 0) + d;
+  // House rule, enforced for every rule: only the single winner can GAIN points in a round.
+  // Everyone else can only stay level or lose (penalties still apply).
+  for (const id of Object.keys(deltas)) if (!winners.includes(id) && deltas[id] > 0) deltas[id] = 0;
 
   let jackpot = state.jackpot || 0;
   const streaks = { ...(state.streaks || {}) };
@@ -55,7 +62,7 @@ export function scoreRound(rule, picks, state, cfg = CONFIG, ctx = {}) {
       deltas[id] = (deltas[id] || 0) + pts;
     }
     jackpot = 0;
-  } else if (!res.group) {
+  } else {
     jackpot += cfg.ROUND_POINTS; // nobody won: the points roll over
   }
   for (const p of picks) if (!winners.includes(p.id)) streaks[p.id] = 0;

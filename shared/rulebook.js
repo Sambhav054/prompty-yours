@@ -11,6 +11,16 @@ import TWIST from './rules_twist.js';
 // are left out: players can't reason about a number they never chose. Every rule is decided by the picks alone.
 export const DRAW_TYPES = new Set(['cursed', 'lucky', 'random_draw', 'coin', 'dice', 'raffle', 'hot_seat']);
 
+// Rules that promise points to several players at once (twins, teams, "everyone +5", "two winners",
+// "last place +5") break the house rule "only one player can gain points, and only with a number
+// nobody else picked", so they are left out rather than silently changed.
+export const MULTI_WIN = new Set([
+  'GREED-010', 'ALONE-001', 'ALONE-002', 'ALONE-004', 'ALONE-005', 'ALONE-010',
+  'CROWD-002', 'CROWD-005', 'CROWD-006', 'CROWD-007', 'CROWD-008', 'CROWD-009',
+  'AVG-005', 'FAV-011', 'FAV-012', 'FAV-013', 'REVENGE-007', 'REVENGE-008', 'REVENGE-009',
+  'REVENGE-012', 'DARE-004', 'DARE-008',
+]);
+
 // Rules that rewrite the scoreboard or hide the rule are parked until they get proper UI.
 export const PARKED = new Set(['WILD-001', 'WILD-002', 'WILD-005', 'WILD-006', 'WILD-007', 'REVENGE-004', 'REVENGE-005']);
 
@@ -171,7 +181,7 @@ const TYPES = {
     const crowd = ps.filter((x) => x.n === nums[0]);
     if (p.mode === 'lose') return group(each(crowd, -10), `${nums[0]} ${p.dir === 'least' ? 'was the loneliest' : 'was the most popular'} and loses 10`);
     if (crowd.length === 1) return single(ids(crowd), `${nums[0]} ${p.dir === 'least' ? 'was the loneliest pick' : 'won the crowd'}`);
-    return group(each(crowd, 10), `${nums[0]} was the most popular, +10 each`);
+    return none(`${crowd.length} players share ${nums[0]}, so they cancel out.`);
   },
   parity_vote(ps, p) {
     const odd = ps.filter((x) => x.n % 2), even = ps.filter((x) => x.n % 2 === 0);
@@ -317,7 +327,7 @@ export function plainText(text) {
 const TYPE_LABEL = { GREED: 'Greed', ALONE: 'Alone or together', CROWD: 'Crowd', FATE: 'Fate', RAFFLE: 'Raffle', AVG: 'Average', FAV: 'Favourites', REVENGE: 'Revenge', NERVES: 'Nerves', WILD: 'Wild card', DARE: 'Dare' };
 
 const V3_RULES = BOOK.rules
-  .filter((r) => !PARKED.has(r.id) && TYPES[r.type] && !DRAW_TYPES.has(r.type))
+  .filter((r) => !PARKED.has(r.id) && !MULTI_WIN.has(r.id) && TYPES[r.type] && !DRAW_TYPES.has(r.type))
   .map((r) => ({
     id: r.id,
     text: PLAIN[r.id] || plainText(r.text),
@@ -401,7 +411,7 @@ function runBranch(br, picks) {
   if (best.length === 1) add(pc, best[0].id, rewardFor(br.reward, best[0]) - 10); // the engine adds the base 10
   return { winners: ids(best), pointChanges: pc, notes: best.length === 1 ? `${best[0].n} takes it` : '' };
 }
-const TWIST_RULES = TWIST.map((r) => ({
+const TWIST_RULES = TWIST.filter((r) => r.category !== 'Find Your Twin').map((r) => ({
   id: r.id,
   text: r.text,
   category: r.category,
