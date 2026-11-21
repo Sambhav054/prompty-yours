@@ -369,3 +369,33 @@ input:focus { border-color: var(--gold); }
 .hub::after { content: ''; position: absolute; inset: -14px; border-radius: 50%; border: 3px solid var(--gold); opacity: 0; animation: hubRing 2.4s ease-out infinite; pointer-events: none; }
 @keyframes hubRing { 0% { transform: scale(0.92); opacity: 0.55; } 100% { transform: scale(1.18); opacity: 0; } }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------- how to play (five steps a child can follow) ---------- */
+.howto { margin-top: 6px; padding: 16px; border-radius: var(--r-lg); background: var(--felt-2); border: 1px solid var(--line); }
+.howto h3 { margin: 0 0 10px; font-family: var(--display); font-size: 1.05rem; font-weight: 800; color: var(--gold); }
+.howto ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
+.howto li { display: flex; align-items: center; gap: 12px; font-size: 1rem; line-height: 1.35; }
+.step-n { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-family: var(--display); font-weight: 800; font-size: 0.95rem; border: 2px dashed rgb(255 255 255 / 0.3); }
+.step-n.red { background: var(--red); }
+.step-n.ink { background: var(--ink-chip); }
+
+/* ---------- winner spotlight + confetti ---------- */
+.confetti { position: fixed; inset: 0; width: 100vw; height: 100dvh; pointer-events: none; z-index: 30; }
+.spot-win { display: grid; justify-items: center; gap: 8px; margin: 8px 0 2px; }
+.medal {
+  position: relative; width: 116px; height: 116px; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle at 35% 30%, #ffe9b0, var(--gold) 48%, var(--gold-deep));
+  box-shadow: 0 0 0 6px rgb(25 21 38 / 0.9), 0 0 0 8px var(--gold-deep), 0 22px 48px -14px rgb(255 200 87 / 0.75);
+  animation: medalIn 0.8s var(--ease-out) both;
+}
+.medal::before { content: ''; position: absolute; inset: -30px; border-radius: 50%; z-index: -1;
+  background: repeating-conic-gradient(rgb(255 200 87 / 0.16) 0 10deg, transparent 10deg 30deg); animation: spin 16s linear infinite; }
+.medal-ava { width: 78px; height: 78px; border-radius: 50%; display: grid; place-items: center; font-size: 2.6rem; background: var(--felt-2); }
+.crown { position: absolute; top: -26px; color: var(--gold); filter: drop-shadow(0 4px 6px rgb(0 0 0 / 0.5)); }
+.crown .ic { width: 40px; height: 40px; fill: var(--gold); stroke: var(--gold-deep); stroke-width: 1.5; }
+.medal-pts { font-family: var(--display); color: var(--muted); }
+.medal-pts b { color: var(--gold); font-size: 1.6rem; margin-right: 2px; }
+.spot-win.champ .medal { width: 136px; height: 136px; }
+.spot-win.champ .medal-ava { width: 92px; height: 92px; font-size: 3rem; }
+.end .headline { color: #fff; }
+@keyframes medalIn { from { transform: scale(0.6) rotate(-12deg); } 60% { transform: scale(1.06) rotate(2deg); } }

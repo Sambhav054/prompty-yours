@@ -83,9 +83,46 @@ function onState(s) {
   lastPhaseKey = key;
 
   if (phaseChanged && s.phase === 'reveal' && s.reveal && s.reveal.round !== revealRound) startReveal(s.reveal);
+  if (phaseChanged && s.phase === 'end' && (s.match?.gameWinnerId || s.match?.over)) {
+    const big = s.match?.over || s.match?.gameWinnerId === pid || s.match?.championId === pid;
+    setTimeout(() => confetti(big ? 220 : 120), 150);
+    if (big) sound.win();
+  }
   if (phaseChanged && s.phase === 'choose' && s.choice?.loserId === pid) { sound.spotlight(); navigator.vibrate?.([60, 40, 60]); }
   if (phaseChanged && s.phase === 'pick' && prev?.phase !== 'pick') { /* new round */ }
   render();
+}
+
+// ---------- confetti: one canvas, game colours, gravity and drift, cleans itself up ----------
+function confetti(count = 140) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const c = document.createElement('canvas');
+  c.className = 'confetti';
+  const dpr = Math.min(2, devicePixelRatio || 1);
+  const W = innerWidth, H = innerHeight;
+  c.width = W * dpr; c.height = H * dpr;
+  document.body.appendChild(c);
+  const g = c.getContext('2d');
+  g.scale(dpr, dpr);
+  const colors = ['#ffc857', '#ffd67e', '#d6334a', '#ffffff', '#b9b0d6'];
+  const bits = Array.from({ length: count }, (_, i) => ({
+    x: W / 2 + (Math.random() - 0.5) * W * 0.3, y: H * 0.32,
+    vx: (Math.random() - 0.5) * 13, vy: -(Math.random() * 13 + 6),
+    w: 6 + Math.random() * 6, h: 9 + Math.random() * 8, r: Math.random() * 6.28, vr: (Math.random() - 0.5) * 0.35,
+    color: colors[i % colors.length], round: i % 4 === 0,
+  }));
+  const t0 = performance.now();
+  (function tick(now) {
+    const t = now - t0;
+    g.clearRect(0, 0, W, H);
+    for (const b of bits) {
+      b.vy += 0.32; b.vx *= 0.99; b.x += b.vx; b.y += b.vy; b.r += b.vr;
+      g.save(); g.globalAlpha = Math.max(0, 1 - t / 3200); g.translate(b.x, b.y); g.rotate(b.r); g.fillStyle = b.color;
+      if (b.round) { g.beginPath(); g.arc(0, 0, b.w / 2, 0, 6.28); g.fill(); } else g.fillRect(-b.w / 2, -b.h / 2, b.w, b.h * Math.abs(Math.cos(b.r)));
+      g.restore();
+    }
+    if (t < 3200) requestAnimationFrame(tick); else c.remove();
+  })(t0);
 }
 
 // ---------- reveal animation: flip picks one by one, roasted pick last ----------
@@ -160,6 +197,7 @@ const ICONS = {
   arrow: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
   back: '<path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
+  crown: '<path d="M3 18h18"/><path d="m3 8 4.5 4L12 5l4.5 7L21 8l-2 10H5Z"/>',
   users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
 };
 const ic = (name, cls = '') =>
@@ -275,7 +313,17 @@ function renderHome() {
       <button class="choice-btn" data-act="toRoom">
         <span class="choice-ic">${ic('users')}</span>
         <span class="choice-txt"><b>Play with friends</b><small>Create a private room or join one with a code.</small></span>
-      </button>`;
+      </button>
+      <section class="howto" aria-label="How to play">
+        <h3>How to play</h3>
+        <ol>
+          <li><span class="step-n red">1</span>Pick a secret number from 1 to 10.</li>
+          <li><span class="step-n ink">2</span>A rule shows who wins.</li>
+          <li><span class="step-n red">3</span>Same number as someone? You both are out.</li>
+          <li><span class="step-n ink">4</span>Last place picks the next rule.</li>
+          <li><span class="step-n red">5</span>Most points at the end wins!</li>
+        </ol>
+      </section>`;
   } else {
     body = `
       ${playingAs()}
@@ -430,7 +478,7 @@ function renderChoose() {
     </section>
     <div class="hand ${fresh ? 'deal-in' : ''}">${c.options
       .map((r, i) => `<button class="rulecard pickable ${r.type}" style="--i:${i}" data-act="choose" data-rule="${esc(r.id)}" ${mineTurn ? '' : 'disabled'}>
-        <span class="rtext">${esc(r.text)}</span><span class="rtype">${esc(r.label || (r.type === 'chaos' ? 'Chaos' : 'Logic'))}</span></button>`)
+        <span class="rtext">${esc(r.text)}</span></button>`)
       .join('')}</div>
     ${chips(false)}`;
 }
@@ -462,9 +510,18 @@ function renderEnd() {
     return `<li class="grudge"><span class="ava">${esc(g.oppEmoji)}</span><span>You vs ${esc(g.oppNick)}<small>${lead}.${cta}</small></span><b>${g.you}–${g.them}</b></li>`;
   }).join('');
 
+  // Winner spotlight: the champion once the match is decided, else this game's winner.
+  const star = m?.over ? lb.find((p) => p.id === m.championId) || lb[0] : gw;
+  const spotlight = star
+    ? `<div class="spot-win ${m?.over ? 'champ' : ''}">
+        <div class="medal"><span class="crown">${ic('crown')}</span><span class="medal-ava">${esc(star.emoji)}</span></div>
+        <div class="medal-pts"><b>${star.score}</b> pts</div>
+      </div>`
+    : `<div class="crest">${ic('trophy')}</div>`;
+
   $app.innerHTML = `
     <section class="end">
-      <div class="crest ${m?.over ? 'champ' : ''}">${ic('trophy')}</div>
+      ${spotlight}
       <h1 class="headline">${head}</h1>
       <p class="sub">${sub}</p>
       ${standings}
