@@ -72,17 +72,15 @@ export const RULES = [
     },
   },
   {
-    id: 'lucky-seven',
-    type: 'chaos',
-    text: 'Pick 7 to win. Two 7s? Both LOSE 5',
-    smart: () => (Math.random() < 0.5 ? 7 : rand(1, 10)),
+    id: 'lucky-seven', type: 'chaos', text: 'Closest to 7 wins. Two 7s? Both LOSE 5',
+    smart: () => rand(6, 8),
     resolve(picks) {
-      const sevens = idsWhere(picks, (p) => p.n === 7);
-      if (sevens.length === 1) return win(sevens, 'Only one brave 7!');
-      if (sevens.length === 0) return none('No 7s. Jackpot rolls over!');
+      const sevens = picks.filter((p) => p.n === 7);
       const pc = {};
-      for (const id of sevens) pc[id] = -5;
-      return win([], `${sevens.length} sevens clashed. Minus 5 each!`, pc);
+      if (sevens.length > 1) for (const p of sevens) pc[p.id] = -5;
+      const pool = sevens.length > 1 ? picks.filter((p) => p.n !== 7) : picks;
+      if (!pool.length) return win([], 'Every 7 clashed. Minus 5 each!', pc);
+      return win(closestTo(pool, 7), sevens.length > 1 ? `${sevens.length} sevens clashed and lose 5` : 'Closest to lucky 7', pc);
     },
   },
   {
@@ -198,12 +196,14 @@ export const RULES = [
     },
   },
   {
-    id: 'lucky-three', type: 'chaos', text: 'Pick 3 to win. More than one 3? Nobody wins',
-    smart: () => (Math.random() < 0.5 ? 3 : rand(1, 10)),
+    id: 'lucky-three', type: 'chaos', text: 'Closest to 3 wins. An exact 3 earns +5',
+    smart: () => rand(2, 4),
     resolve(picks) {
-      const threes = idsWhere(picks, (p) => p.n === 3);
-      if (!threes.length) return none('Nobody picked 3.');
-      return win(threes, threes.length === 1 ? 'The lone 3 strikes!' : 'Too many 3s.');
+      if (!picks.length) return none('Nobody played.');
+      const w = closestTo(picks, 3);
+      const pc = {};
+      if (w.length === 1 && picks.find((p) => p.id === w[0]).n === 3) pc[w[0]] = 5;
+      return win(w, pc[w[0]] ? 'A perfect 3! Bonus +5' : 'Closest to 3 takes it', pc);
     },
   },
   {
@@ -235,14 +235,16 @@ export const RULES = [
     },
   },
   {
-    id: 'odd-one-out', type: 'chaos', text: 'The only ODD or only EVEN number wins',
+    id: 'odd-one-out', type: 'chaos', text: 'Lone ODD or lone EVEN wins. Else highest wins',
     smart: () => rand(1, 10),
     resolve(picks) {
+      if (!picks.length) return none('Nobody played.');
       const odd = picks.filter((p) => p.n % 2 === 1);
       const even = picks.filter((p) => p.n % 2 === 0);
       if (odd.length === 1 && even.length > 1) return win([odd[0].id], 'The lone odd number stands out!');
       if (even.length === 1 && odd.length > 1) return win([even[0].id], 'The lone even number stands out!');
-      return none('Nobody stood out.');
+      const max = Math.max(...picks.map((p) => p.n));
+      return win(idsWhere(picks, (p) => p.n === max), `Nobody stood out, so highest ${max} wins`);
     },
   },
   {
@@ -284,23 +286,31 @@ export const RULES = [
     },
   },
   {
-    id: 'step-up', type: 'chaos', text: 'Be exactly ONE above someone. Highest wins',
+    id: 'step-up', type: 'chaos', text: 'Be ONE above someone. Highest such wins. Else lowest',
     smart: () => rand(2, 9),
     resolve(picks) {
+      if (!picks.length) return none('Nobody played.');
       const set = new Set(picks.map((p) => p.n));
       const ok = picks.filter((p) => set.has(p.n - 1));
-      if (!ok.length) return none('Nobody stepped up.');
+      if (!ok.length) {
+        const min = Math.min(...picks.map((p) => p.n));
+        return win(idsWhere(picks, (p) => p.n === min), `Nobody stepped up, so lowest ${min} wins`);
+      }
       const max = Math.max(...ok.map((p) => p.n));
       return win(idsWhere(ok, (p) => p.n === max), `${max} sat one above ${max - 1}`);
     },
   },
   {
-    id: 'double-trouble', type: 'chaos', text: 'Be exactly DOUBLE someone. Highest wins',
+    id: 'double-trouble', type: 'chaos', text: 'Be DOUBLE someone to win. Nobody? Lowest wins',
     smart: () => [4, 6, 8, 10][rand(0, 3)],
     resolve(picks) {
+      if (!picks.length) return none('Nobody played.');
       const set = new Set(picks.map((p) => p.n));
       const ok = picks.filter((p) => p.n % 2 === 0 && set.has(p.n / 2) && p.n !== p.n / 2);
-      if (!ok.length) return none('Nobody doubled anyone.');
+      if (!ok.length) {
+        const min = Math.min(...picks.map((p) => p.n));
+        return win(idsWhere(picks, (p) => p.n === min), `Nobody doubled anyone, so lowest ${min} wins`);
+      }
       const max = Math.max(...ok.map((p) => p.n));
       return win(idsWhere(ok, (p) => p.n === max), `${max} doubled ${max / 2}`);
     },
@@ -351,15 +361,18 @@ export const RULES = [
     },
   },
   {
-    id: 'greedy-ten', type: 'chaos', text: 'Lone 10 wins DOUBLE. Two 10s? Both LOSE 10',
-    smart: () => (Math.random() < 0.4 ? 10 : rand(1, 9)),
+    id: 'greedy-ten', type: 'chaos', text: 'Highest wins. Lone 10 wins DOUBLE. Two 10s LOSE 10',
+    smart: () => (Math.random() < 0.4 ? 10 : rand(7, 9)),
     resolve(picks) {
-      const tens = idsWhere(picks, (p) => p.n === 10);
-      if (tens.length === 1) return win(tens, 'Greed pays! Double points', { [tens[0]]: 10 });
-      if (!tens.length) return none('Nobody was greedy.');
+      const tens = picks.filter((p) => p.n === 10);
       const pc = {};
-      for (const id of tens) pc[id] = -10;
-      return win([], `${tens.length} greedy 10s. Minus 10 each!`, pc);
+      if (tens.length > 1) for (const p of tens) pc[p.id] = -10;
+      const pool = tens.length > 1 ? picks.filter((p) => p.n !== 10) : picks;
+      if (!pool.length) return win([], 'Everyone got greedy. Minus 10 each!', pc);
+      const max = Math.max(...pool.map((p) => p.n));
+      const w = idsWhere(pool, (p) => p.n === max);
+      if (max === 10 && w.length === 1) pc[w[0]] = 10;
+      return win(w, max === 10 ? 'Greed pays! Double points' : `${max} was the highest`, pc);
     },
   },
   {
@@ -424,11 +437,15 @@ export const RULES = [
     },
   },
   {
-    id: 'neighbours', type: 'chaos', text: 'Someone right next to you (±1)? Lowest such wins',
+    id: 'neighbours', type: 'chaos', text: 'Lowest with a ±1 neighbour wins. Else highest',
     smart: () => rand(3, 7),
     resolve(picks) {
+      if (!picks.length) return none('Nobody played.');
       const ok = picks.filter((p) => picks.some((q) => q.id !== p.id && Math.abs(q.n - p.n) === 1));
-      if (!ok.length) return none('No neighbours tonight.');
+      if (!ok.length) {
+        const max = Math.max(...picks.map((p) => p.n));
+        return win(idsWhere(picks, (p) => p.n === max), `No neighbours, so highest ${max} wins`);
+      }
       const min = Math.min(...ok.map((p) => p.n));
       return win(idsWhere(ok, (p) => p.n === min), `${min} had a neighbour`);
     },
@@ -455,11 +472,15 @@ export const RULES = [
     },
   },
   {
-    id: 'square-dance', type: 'logic', text: 'Highest SQUARE number wins (1, 4, 9)',
+    id: 'square-dance', type: 'logic', text: 'Highest SQUARE (1, 4, 9) wins. None? Lowest wins',
     smart: () => [4, 9][rand(0, 1)],
     resolve(picks) {
+      if (!picks.length) return none('Nobody played.');
       const sq = picks.filter((p) => [1, 4, 9].includes(p.n));
-      if (!sq.length) return none('No squares. Nobody scores!');
+      if (!sq.length) {
+        const min = Math.min(...picks.map((p) => p.n));
+        return win(idsWhere(picks, (p) => p.n === min), `No squares, so lowest ${min} wins`);
+      }
       const max = Math.max(...sq.map((p) => p.n));
       return win(idsWhere(sq, (p) => p.n === max), `${max} was the biggest square`);
     },
