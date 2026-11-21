@@ -286,13 +286,36 @@ function applyEffects(rule, res, picks, ctx) {
   return { ...res, pointChanges: pc, jackpotX2: (rule.effects || []).includes('jackpot_x2') };
 }
 
+// Rules whose label carried the meaning get a plain sentence that stands on its own.
+const PLAIN = {
+  'FATE-002': 'Two snake numbers appear. Touch either: -10. Highest of the rest wins.',
+  'FATE-003': 'Three snake numbers appear. Dodge them all: +5. Get bitten: -10.',
+  'FATE-005': 'A snake number appears. Pick it: -10. Lowest of the rest wins DOUBLE.',
+  'FATE-006': 'A cursed number appears. Pick it: -10 and a dare. Highest of the rest wins.',
+  'FATE-008': 'A lucky number appears. Pick it alone: +15. Share it: -5 each.',
+  'FATE-009': 'Two lucky numbers appear. Pick one alone: +20. Share it: -10.',
+  'FATE-010': 'Three lucky numbers appear. Pick any of them for +5.',
+  'FATE-013': 'A random number drops. Hit it exactly to win. Nobody? Jackpot grows!',
+};
+
+// Drop the shouty all-caps label in front of a rule ("HOT SEAT! …") so only the rule itself shows.
+export function plainText(text) {
+  const m = text.match(/^([^!?]{2,40})!\s+(.+)$/);
+  if (!m) return text;
+  const label = m[1];
+  const isLabel = label === label.toUpperCase() && /[A-Z]/.test(label);
+  if (!isLabel) return text;
+  const rest = m[2];
+  return rest.charAt(0).toUpperCase() + rest.slice(1);
+}
+
 const TYPE_LABEL = { GREED: 'Greed', ALONE: 'Alone or together', CROWD: 'Crowd', FATE: 'Fate', RAFFLE: 'Raffle', AVG: 'Average', FAV: 'Favourites', REVENGE: 'Revenge', NERVES: 'Nerves', WILD: 'Wild card', DARE: 'Dare' };
 
 export const RULEBOOK = BOOK.rules
   .filter((r) => !PARKED.has(r.id) && TYPES[r.type])
   .map((r) => ({
     id: r.id,
-    text: r.text,
+    text: PLAIN[r.id] || plainText(r.text),
     category: r.category,
     label: TYPE_LABEL[r.category] || r.category,
     type: r.tier >= 2 ? 'chaos' : 'logic',
