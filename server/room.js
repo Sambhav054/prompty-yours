@@ -1,7 +1,17 @@
 // One game room. The server owns all state: it picks rules, collects picks, scores rounds.
 // Transport-agnostic: the server passes onChange to push state to sockets; the simulator passes nothing.
 import { CONFIG } from '../shared/config.js';
-import { RULES, RULES_BY_ID, randomRules } from '../shared/rules.js';
+import { RULEBOOK_BY_ID as RULES_BY_ID, chooseRules, makeDraw } from '../shared/rulebook.js';
+
+// Rules each player has seen recently, across rooms, so a new room doesn't replay the same rules.
+const SEEN = new Map(); // playerId -> [ruleId, ...] newest last
+const SEEN_LIMIT = 40;
+function markSeen(pid, ruleId) {
+  const a = SEEN.get(pid) || [];
+  a.push(ruleId);
+  if (a.length > SEEN_LIMIT) a.splice(0, a.length - SEEN_LIMIT);
+  SEEN.set(pid, a);
+}
 import { BOTS, botByKey } from '../shared/bots.js';
 import { scoreRound, findLoser } from '../shared/engine.js';
 import { commentary } from '../shared/commentary.js';
@@ -187,6 +197,13 @@ export class Room {
     this.notice = null;
   }
 
+  // Every rule any human at this table saw recently (in any room).
+  recentSeen() {
+    const s = new Set();
+    for (const p of this.players) if (!p.bot) for (const id of SEEN.get(p.id) || []) s.add(id);
+    return s;
+  }
+
   // ---------- game flow ----------
   start() {
     if (this.phase !== 'lobby' && this.phase !== 'end') return;
@@ -209,11 +226,13 @@ export class Room {
     // Best-of-3 match: a new match starts after the previous one is decided.
     if (!this.match || this.match.over) {
       this.match = { game: 1, of: 3, wins: {}, totals: {}, over: false, championId: null, gameWinnerId: null };
+      this.usedRules = new Set(); // no rule repeats within a best-of-3 (30 rules)
     } else {
       this.match.game += 1;
       this.match.gameWinnerId = null;
     }
-    this.rule = RULES[rand(0, RULES.length - 1)];
+    this.usedRules = this.usedRules || new Set();
+    this.rule = chooseRules(1, { round: 1, used: this.usedRules, recent: this.recentSeen() })[0];
     this.nextRound();
   }
 
@@ -223,6 +242,9 @@ export class Room {
     this.lockCounter = 0;
     this.choice = null;
     this.history.push(this.rule.id);
+    this.usedRules.add(this.rule.id);
+    for (const p of this.players) if (!p.bot) markSeen(p.id, this.rule.id);
+    this.draw = makeDraw(this.rule, this.players.map((p) => p.id));
     this.setPhase('pick', this.cfg.PICK_MS);
     for (const p of this.players.filter((x) => x.bot)) {
       const delay = rand(Math.min(400, this.cfg.PICK_MS / 4), Math.max(1, Math.min(3500, this.cfg.PICK_MS - 500)));
@@ -254,10 +276,12 @@ export class Room {
       if (!this.picks.has(p.id)) this.picks.set(p.id, { id: p.id, n: rand(1, 10), t: this.lockCounter++, auto: true });
     }
     const list = [...this.picks.values()];
+    const ctx = { scores: { ...this.scores }, draw: this.draw };
     const res = scoreRound(this.rule, list.map(({ id, n, t }) => ({ id, n, t })), {
       jackpot: this.jackpot,
       streaks: this.streaks,
-    }, this.cfg);
+    }, this.cfg, ctx);
+    this.lastCtx = ctx;
     // Revenge: the last-place player picked this rule and then won with it.
     const revengeId = this.ruleChosenBy && res.winners.includes(this.ruleChosenBy) ? this.ruleChosenBy : null;
     if (revengeId) res.deltas[revengeId] = (res.deltas[revengeId] || 0) + this.cfg.REVENGE_BONUS;
@@ -280,13 +304,16 @@ export class Room {
       roastNumber: roasted?.n,
       repeated,
       revenge: !!revengeId,
+      group: res.group,
     });
 
     // Reveal order: winners first... no, suspense: roasted pick goes last.
     const order = shuffle(list).sort((a, b) => (a.id === roasted?.id) - (b.id === roasted?.id));
     this.lastReveal = {
       round: this.round,
-      rule: { id: this.rule.id, text: this.rule.text },
+      rule: { id: this.rule.id, text: this.rule.text, label: this.rule.label },
+      ctx: this.lastCtx, // the same scores and random draw, so phones can replay the rule for near-misses
+      group: res.group,
       picks: order.map((p) => ({ id: p.id, nick: nickOf(p.id), emoji: this.get(p.id)?.emoji, n: p.n, t: p.t, auto: !!p.auto })),
       winners: res.winners,
       tied: res.tied,
@@ -311,7 +338,7 @@ export class Room {
     const loser = findLoser(this.players, this.scores, { lastChooserId: this.lastChooserId, chooseCounts: this.chooseCounts });
     this.lastChooserId = loser.id;
     this.chooseCounts[loser.id] = (this.chooseCounts[loser.id] || 0) + 1;
-    const options = randomRules(3, this.rule.id);
+    const options = chooseRules(3, { round: this.round + 1, used: this.usedRules, recent: this.recentSeen() });
     this.choice = { loserId: loser.id, options: options.map((r) => r.id) };
     this.setPhase('choose', this.cfg.LOSER_MS);
     if (loser.bot || !loser.connected) {
@@ -446,7 +473,7 @@ export class Room {
       remaining: this.deadline ? Math.max(0, this.deadline - Date.now()) : 0,
       phaseMs: this.phaseMs,
       quickStartIn: this.phase === 'lobby' && this.quickStartAt ? Math.max(0, this.quickStartAt - Date.now()) : 0,
-      rule: this.rule ? { id: this.rule.id, text: this.rule.text, type: this.rule.type } : null,
+      rule: this.rule ? { id: this.rule.id, text: this.rule.text, type: this.rule.type, label: this.rule.label } : null,
       players: this.players.map((p) => ({
         id: p.id,
         nick: p.nick,
@@ -462,7 +489,7 @@ export class Room {
         ? {
             loserId: this.choice.loserId,
             loserNick: nickOf(this.choice.loserId),
-            options: this.choice.options.map((id) => ({ id, text: RULES_BY_ID[id].text, type: RULES_BY_ID[id].type })),
+            options: this.choice.options.map((id) => ({ id, text: RULES_BY_ID[id].text, type: RULES_BY_ID[id].type, label: RULES_BY_ID[id].label })),
           }
         : null,
       leaderboard: this.phase === 'end' ? this.leaderboard() : null,

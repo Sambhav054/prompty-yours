@@ -2,7 +2,7 @@
 // at high speed, to catch rule bugs, timer bugs and crashes.
 // Run: npm run sim   (optionally: node test/sim.js 500)
 import { CONFIG } from '../shared/config.js';
-import { RULES_BY_ID } from '../shared/rules.js';
+import { RULEBOOK_BY_ID as RULES_BY_ID } from '../shared/rulebook.js';
 import { Room } from '../server/room.js';
 
 const GAMES = Number(process.argv[2]) || 100;
@@ -128,4 +128,24 @@ console.log('Rules played:', ruleCount);
   if (back2back) throw new Error(`same chooser twice in a row ${back2back} times`);
   const avgMax = shares.reduce((a, b) => a + b, 0) / shares.length;
   console.log(`OK: fair chooser over ${games} games: never twice in a row, busiest chooser averages ${(avgMax * 100).toFixed(0)}% of picks.`);
+}
+
+// No rule repeats inside a best-of-3 played in a real room (30 rounds).
+{
+  for (let k = 0; k < 10; k++) {
+    let done;
+    const room = new Room('NOREP' + k, { cfg: { ...FAST, MIN_PLAYERS: 4 }, onEnd: () => done() });
+    room.rounds = 10;
+    const all = [];
+    for (let g = 0; g < 3; g++) {
+      const ended = new Promise((r) => (done = r));
+      room.start();
+      await ended;
+      all.push(...room.history);
+      if (room.match.over) break;
+    }
+    if (new Set(all).size !== all.length) throw new Error(`rule repeated within a match: ${all.length - new Set(all).size} repeats`);
+    room.clearTimers(); room.cancelEmptyTimer();
+  }
+  console.log('OK: no rule repeats within any best-of-3 match.');
 }

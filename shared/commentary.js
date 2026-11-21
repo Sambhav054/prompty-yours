@@ -30,12 +30,18 @@ const REPEAT = [
   '{n} again, {l}? Creature of habit.',
   '{l} is loyal to {n}. The rule is not.',
 ];
+const GROUP = [
+  'The rule pays out. Check who gained and who got burned.',
+  'Points fly everywhere. The scoreboard just got spicy.',
+  'Group payout! Some smiles, some groans.',
+];
 const REVENGE = [
   '{w} picked the rule and won with it. Sweet revenge.',
 ];
 
-export function commentary({ winners, tiedCount, jackpot, roaster, roastNumber, repeated, revenge }) {
+export function commentary({ winners, tiedCount, jackpot, roaster, roastNumber, repeated, revenge, group }) {
   const lines = [];
+  if (group) return pickOne(GROUP);
   if (revenge) lines.push(fill(pickOne(REVENGE), { w: winners[0] }));
   else if (winners.length) lines.push(fill(pickOne(WIN), { w: winners[0] }));
   else if (tiedCount) lines.push(fill(pickOne(TIE), { k: tiedCount, j: jackpot }));

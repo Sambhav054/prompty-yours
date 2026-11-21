@@ -1,6 +1,6 @@
 // Rule Roulette phone client. Talks to the server over a WebSocket and renders whatever state it gets.
 import { sound } from './sound.js';
-import { RULES_BY_ID } from '/shared/rules.js';
+import { RULEBOOK_BY_ID as RULES_BY_ID } from '/shared/rulebook.js';
 import { decide } from '/shared/engine.js';
 
 const $app = document.getElementById('app');
@@ -430,7 +430,7 @@ function renderChoose() {
     </section>
     <div class="hand ${fresh ? 'deal-in' : ''}">${c.options
       .map((r, i) => `<button class="rulecard pickable ${r.type}" style="--i:${i}" data-act="choose" data-rule="${esc(r.id)}" ${mineTurn ? '' : 'disabled'}>
-        <span class="rtext">${esc(r.text)}</span><span class="rtype">${r.type === 'chaos' ? 'Chaos' : 'Logic'}</span></button>`)
+        <span class="rtext">${esc(r.text)}</span><span class="rtype">${esc(r.label || (r.type === 'chaos' ? 'Chaos' : 'Logic'))}</span></button>`)
       .join('')}</div>
     ${chips(false)}`;
 }
@@ -486,7 +486,7 @@ function renderEnd() {
 
 // Near-miss: re-run the real rule with every other number in place of yours.
 function nearMiss(rev) {
-  if (rev.winners.includes(pid)) return '';
+  if (rev.winners.includes(pid) || rev.group) return ''; // group rules pay everyone they name; no near-miss
   const mine = rev.picks.find((p) => p.id === pid);
   const rule = RULES_BY_ID[rev.rule.id];
   if (!mine || !rule) return '';
@@ -494,7 +494,7 @@ function nearMiss(rev) {
   for (let n = 1; n <= 10; n++) {
     if (n === mine.n) continue;
     const picks = rev.picks.map((p) => ({ id: p.id, n: p.id === pid ? n : p.n, t: p.t }));
-    const w = decide(rule, picks).winners; // same house rules as the server
+    const w = decide(rule, picks, rev.ctx || {}).winners; // same house rules and random draw as the server
     if (w.length === 1 && w[0] === pid) winning.push(n);
   }
   if (!winning.length) return 'No number could have saved you this round.';

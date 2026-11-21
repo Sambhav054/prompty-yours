@@ -9,10 +9,12 @@ const uniq = (a) => [...new Set(a || [])];
 //    and the rule is replayed on the remaining (unmatched) numbers.
 // 3. If different numbers are still level (e.g. 1 and 9 are both 4 away from 5), nobody wins
 //    and the points roll into the jackpot.
-export function decide(rule, picks) {
-  const r1 = rule.resolve(picks) || { winners: [], pointChanges: {}, notes: '' };
+export function decide(rule, picks, ctx = {}) {
+  const r1 = rule.resolve(picks, ctx) || { winners: [], pointChanges: {}, notes: '' };
+  // Group rules ("everyone who…") pay exactly what they say: no knock-outs, no tie-cancel.
+  if (r1.group) return { pointChanges: { ...(r1.pointChanges || {}) }, knocked: [], tied: [], winners: [], notes: r1.notes || '', group: true, jackpotX2: r1.jackpotX2 };
   const w1 = uniq(r1.winners);
-  const base = { pointChanges: { ...(r1.pointChanges || {}) }, knocked: [], tied: [] };
+  const base = { pointChanges: { ...(r1.pointChanges || {}) }, knocked: [], tied: [], jackpotX2: r1.jackpotX2 };
   if (w1.length <= 1) return { ...base, winners: w1, notes: r1.notes || '' };
 
   const count = new Map();
@@ -20,14 +22,14 @@ export function decide(rule, picks) {
   const knocked = picks.filter((p) => count.get(p.n) > 1).map((p) => p.id);
   const rest = picks.filter((p) => count.get(p.n) === 1);
   if (knocked.length && rest.length) {
-    const r2 = rule.resolve(rest) || { winners: [] };
+    const r2 = rule.resolve(rest, ctx) || { winners: [] };
     const w2 = uniq(r2.winners);
     if (w2.length === 1) {
       const pc = { ...base.pointChanges };
       delete pc[w2[0]];
       if (r2.pointChanges?.[w2[0]]) pc[w2[0]] = r2.pointChanges[w2[0]];
       const nums = uniq(picks.filter((p) => knocked.includes(p.id)).map((p) => p.n)).join(', ');
-      return { pointChanges: pc, knocked, tied: [], winners: w2, notes: `Matching ${nums} knocked each other out. ${r2.notes || ''}`.trim() };
+      return { pointChanges: pc, knocked, tied: [], winners: w2, jackpotX2: r1.jackpotX2, notes: `Matching ${nums} knocked each other out. ${r2.notes || ''}`.trim() };
     }
   }
   return { ...base, winners: [], tied: w1, notes: `${w1.length} players tied, so they cancel out.` };
@@ -35,8 +37,8 @@ export function decide(rule, picks) {
 
 // state: { streaks: {id: n}, jackpot: n }
 // returns { winners, tied, knocked, deltas: {id: n}, notes, jackpot, streaks }  (does not mutate state)
-export function scoreRound(rule, picks, state, cfg = CONFIG) {
-  const res = decide(rule, picks);
+export function scoreRound(rule, picks, state, cfg = CONFIG, ctx = {}) {
+  const res = decide(rule, picks, ctx);
   const winners = res.winners;
   const deltas = {};
   for (const p of picks) deltas[p.id] = 0;
@@ -44,6 +46,7 @@ export function scoreRound(rule, picks, state, cfg = CONFIG) {
 
   let jackpot = state.jackpot || 0;
   const streaks = { ...(state.streaks || {}) };
+  if (res.jackpotX2) jackpot *= 2; // jackpot-doubling rules
   if (winners.length) {
     for (const id of winners) {
       streaks[id] = (streaks[id] || 0) + 1;
@@ -52,12 +55,12 @@ export function scoreRound(rule, picks, state, cfg = CONFIG) {
       deltas[id] = (deltas[id] || 0) + pts;
     }
     jackpot = 0;
-  } else {
-    jackpot += cfg.ROUND_POINTS;
+  } else if (!res.group) {
+    jackpot += cfg.ROUND_POINTS; // nobody won: the points roll over
   }
   for (const p of picks) if (!winners.includes(p.id)) streaks[p.id] = 0;
 
-  return { winners, tied: res.tied, knocked: res.knocked, deltas, notes: res.notes, jackpot, streaks };
+  return { winners, tied: res.tied, knocked: res.knocked, group: !!res.group, deltas, notes: res.notes, jackpot, streaks };
 }
 
 // Who picks the next rule, fairly: someone from the bottom half of the scoreboard,
