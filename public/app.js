@@ -140,7 +140,7 @@ function startReveal(rev) {
   const step = Math.min(450, 2200 / Math.max(1, rev.picks.length));
   revealTimer = setInterval(() => {
     revealShown++;
-    sound.flip();
+    sound.flip(revealShown - 1); // each flip climbs the scale: anticipation
     if (revealShown >= rev.picks.length) {
       clearInterval(revealTimer);
       if (rev.winners.includes(pid)) { sound.win(); navigator.vibrate?.(80); }
