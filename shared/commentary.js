@@ -1,39 +1,45 @@
-// Hinglish cricket-commentator lines. {w} = winner, {l} = loser, {n} = number, {j} = jackpot.
+// Round commentary. {w} = winner, {l} = roasted player, {n} = number, {j} = jackpot, {k} = tied count.
 const pickOne = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const fill = (s, v) => s.replace(/\{(\w)\}/g, (_, k) => (v[k] ?? ''));
 
 const WIN = [
-  '{w} ne maara chhakka! 🏏',
-  'Kya shot hai {w}! Seedha boundary ke bahar!',
-  '{w} is on fire. Koi rokho isko!',
-  'Pure luck, but {w} will call it strategy.',
-  '{w} takes it. Crowd goes wild! 📣',
+  '{w} takes the round.',
+  'Clean win for {w}.',
+  '{w} read the room perfectly.',
+  'Nobody saw that coming. Point to {w}.',
+  '{w} makes it look easy.',
+  'Right number, right moment. Well played, {w}.',
 ];
-const MULTI_WIN = [
-  'Partnership! {w} share the points.',
-  '{w} all win. Sharing is caring, bhai.',
+const TIE = [
+  '{k} players matched and cancelled each other out. Jackpot is now {j}.',
+  'A dead heat. Nobody scores, and the jackpot climbs to {j}.',
+  'Great minds think alike, and they all walk away empty. Jackpot: {j}.',
 ];
 const NO_WIN = [
-  'Nobody won! Jackpot ab {j} points ka hai 💰',
-  'Dot ball! Jackpot grows to {j}.',
-  'Sab fail. Jackpot {j} points pe pahunch gaya!',
+  'No winner this round. The jackpot grows to {j}.',
+  'Nobody cracked it. {j} points now sit in the jackpot.',
+  'The rule wins this one. Jackpot rises to {j}.',
 ];
-const LOSER = [
-  '{l} picked {n}? Bhai, kya soch ke?',
-  '{l}, {n}? Even Nani would not do that.',
-  'Clean bowled! {l} with a {n}. 😬',
-  '{l} is batting like it is a Test match.',
+const ROAST = [
+  '{l} went with {n}. Bold choice.',
+  '{n}, {l}? The rule had other plans.',
+  'Not your round, {l}. {n} never stood a chance.',
+  '{l} picked {n} and is already regretting it.',
 ];
 const REPEAT = [
-  '{n}? Phir se? Predictable, {l}.',
-  '{l} loves {n}. Shaadi kar lo usse.',
+  '{n} again, {l}? Creature of habit.',
+  '{l} is loyal to {n}. The rule is not.',
+];
+const REVENGE = [
+  'Revenge! {w} chose this rule and won with it. +10 bonus.',
 ];
 
-export function commentary({ winners, jackpot, roaster, roastNumber, repeated }) {
+export function commentary({ winners, tiedCount, jackpot, roaster, roastNumber, repeated, revenge }) {
   const lines = [];
-  if (!winners.length) lines.push(fill(pickOne(NO_WIN), { j: jackpot }));
-  else if (winners.length === 1) lines.push(fill(pickOne(WIN), { w: winners[0] }));
-  else lines.push(fill(pickOne(MULTI_WIN), { w: winners.join(' & ') }));
-  if (roaster) lines.push(fill(pickOne(repeated ? REPEAT : LOSER), { l: roaster, n: roastNumber }));
+  if (revenge) lines.push(fill(pickOne(REVENGE), { w: winners[0] }));
+  else if (winners.length) lines.push(fill(pickOne(WIN), { w: winners[0] }));
+  else if (tiedCount) lines.push(fill(pickOne(TIE), { k: tiedCount, j: jackpot }));
+  else lines.push(fill(pickOne(NO_WIN), { j: jackpot }));
+  if (roaster && !tiedCount) lines.push(fill(pickOne(repeated ? REPEAT : ROAST), { l: roaster, n: roastNumber }));
   return lines.join(' ');
 }

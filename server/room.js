@@ -37,6 +37,7 @@ export class Room {
     this.timers = new Set();
     this.emptyTimer = null;
     this.history = []; // rule ids played, for the simulator
+    this.ruleChosenBy = null; // last-place player who picked this round's rule (for revenge)
   }
 
   // ---------- timers ----------
@@ -153,6 +154,7 @@ export class Room {
     this.lastPickBy = {};
     this.lastWinningPick = null;
     this.history = [];
+    this.ruleChosenBy = null;
     this.rule = RULES[rand(0, RULES.length - 1)];
     this.nextRound();
   }
@@ -198,12 +200,15 @@ export class Room {
       jackpot: this.jackpot,
       streaks: this.streaks,
     }, this.cfg);
+    // Revenge: the last-place player picked this rule and then won with it.
+    const revengeId = this.ruleChosenBy && res.winners.includes(this.ruleChosenBy) ? this.ruleChosenBy : null;
+    if (revengeId) res.deltas[revengeId] = (res.deltas[revengeId] || 0) + this.cfg.REVENGE_BONUS;
     for (const [id, d] of Object.entries(res.deltas)) this.scores[id] = (this.scores[id] || 0) + d;
     this.jackpot = res.jackpot;
     this.streaks = res.streaks;
 
     const nickOf = (id) => this.get(id)?.nick || '?';
-    const losers = list.filter((p) => !res.winners.includes(p.id));
+    const losers = list.filter((p) => !res.winners.includes(p.id) && !res.tied.includes(p.id));
     const roasted = losers.length ? losers[rand(0, losers.length - 1)] : null;
     const repeated = roasted ? this.lastPickBy[roasted.id] === roasted.n : false;
     for (const p of list) this.lastPickBy[p.id] = p.n;
@@ -211,10 +216,12 @@ export class Room {
 
     const line = commentary({
       winners: res.winners.map(nickOf),
+      tiedCount: res.tied.length,
       jackpot: this.jackpot,
       roaster: roasted ? nickOf(roasted.id) : null,
       roastNumber: roasted?.n,
       repeated,
+      revenge: !!revengeId,
     });
 
     // Reveal order: winners first... no, suspense: roasted pick goes last.
@@ -222,8 +229,11 @@ export class Room {
     this.lastReveal = {
       round: this.round,
       rule: { id: this.rule.id, text: this.rule.text },
-      picks: order.map((p) => ({ id: p.id, nick: nickOf(p.id), emoji: this.get(p.id)?.emoji, n: p.n, auto: !!p.auto })),
+      picks: order.map((p) => ({ id: p.id, nick: nickOf(p.id), emoji: this.get(p.id)?.emoji, n: p.n, t: p.t, auto: !!p.auto })),
       winners: res.winners,
+      tied: res.tied,
+      revengeId,
+      chosenBy: this.ruleChosenBy,
       deltas: res.deltas,
       notes: res.notes,
       line,
@@ -247,7 +257,7 @@ export class Room {
       this.later(this.cfg.BOT_CHOOSE_MS, () => {
         const def = loser.bot ? botByKey(loser.bot) : null;
         const pickRule = def ? def.choose(options) : options[rand(0, options.length - 1)];
-        this.applyChoice(pickRule.id);
+        this.applyChoice(pickRule.id, loser.bot ? loser.id : null);
       });
     }
     this.later(this.cfg.LOSER_MS, () => this.autoChoose());
@@ -257,18 +267,19 @@ export class Room {
   autoChoose() {
     if (this.phase !== 'choose') return;
     const opts = this.choice.options;
-    this.applyChoice(opts[rand(0, opts.length - 1)]);
+    this.applyChoice(opts[rand(0, opts.length - 1)], null); // timed out: no revenge chance
   }
 
   chooseRule(id, ruleId) {
     if (this.phase !== 'choose' || this.choice?.loserId !== id) return;
     if (!this.choice.options.includes(ruleId)) return;
-    this.applyChoice(ruleId);
+    this.applyChoice(ruleId, id);
   }
 
-  applyChoice(ruleId) {
+  applyChoice(ruleId, chooserId) {
     if (this.phase !== 'choose') return;
     this.clearTimers();
+    this.ruleChosenBy = chooserId;
     this.rule = RULES_BY_ID[ruleId];
     this.nextRound();
   }

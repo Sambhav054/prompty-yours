@@ -10,5 +10,6 @@ export const CONFIG = {
   QUICK_FILL_MS: 5000,  // quick match waits this long for humans, then bots fill
   ROUND_POINTS: 10,     // round winner gets this
   STREAK_BONUS: 5,      // extra for 3+ wins in a row
+  REVENGE_BONUS: 10,    // last-place player picks a rule, then wins with it
   EMPTY_ROOM_MS: 60000, // delete a room this long after the last human leaves
 };
