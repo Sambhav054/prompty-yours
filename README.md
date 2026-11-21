@@ -4,7 +4,7 @@
 
 **Play it:** **https://rule-roulette.onrender.com**. No sign-up. Opens on any phone.
 
-Everyone secretly picks a number from 1 to 10. Then the rule drops, and it's different every round: "Lowest unique number wins", "Anyone picks 1? Highest wins, otherwise lowest wins", "A snake number appears, touch it and lose 10". **Whoever is in last place picks the next rule.** About 2–3 minutes a game, best of 3.
+Everyone secretly picks a number from 1 to 10. Then the rule drops, and it's different every round: "Lowest unique number wins", "Anyone picks 1? Highest wins, otherwise lowest wins", "Only one 6? They win 20. Two or more 6s each lose 10". **Whoever is in last place picks the next rule.** About 2–3 minutes a game, best of 3.
 
 ## How to play (the version on the play screen)
 
@@ -18,8 +18,8 @@ Everyone secretly picks a number from 1 to 10. Then the rule drops, and it's dif
 
 - **Play now:** a random table where bots fill empty seats after 5 seconds, so a stranger can always play, even alone.
 - **Play with friends:** create a room and share the 4-letter code, up to 10 players. The host picks 6, 8 or 10 rounds and can cancel; public tables can only be left.
-- **155 rules in 16 categories:**
-  - 108 from the team's v3 rulebook: greed, crowd, fate with snakes and dice, raffles, revenge, dares and more.
+- **128 rules in 14 categories, every one decided only by what players pick (no secret random numbers):**
+  - 81 from the team's v3 rulebook: greed, alone-or-together, crowd, averages, favourite numbers, revenge, nerves, wild cards and dares. Rules where the game draws a hidden number (snakes, lucky stars, dice, coin, raffle, hot seat) were removed.
   - 47 hand-picked cards from the 500-card book: Plot Twist, Greed & Regret, Neighbours, Stand Alone and Find Your Twin. For each family we kept the clearest one to three cards and skipped the near-duplicates.
 - **No repeats:**
   - Every round of a game comes from a **different category**.
@@ -44,9 +44,9 @@ Everyone secretly picks a number from 1 to 10. Then the rule drops, and it's dif
 | File | Job |
 |---|---|
 | `shared/rules_v3.js`, `shared/rules_twist.js` | The rulebooks, as data |
-| `shared/rulebook.js` | Interpreter for every rule type, random draws (dice, coin, snakes, raffle), and the rule chooser (tiers, categories, no repeats) |
+| `shared/rulebook.js` | Interpreter for every rule type and the rule chooser (tiers, categories, no repeats) |
 | `shared/engine.js` | Scoring: knock-outs, ties, jackpot, streaks, revenge, and who picks next |
-| `server/room.js` | One room's game flow. The server is authoritative: it draws randoms, scores rounds and owns the timers |
+| `server/room.js` | One room's game flow. The server is authoritative: it scores rounds and owns the timers |
 | `server/server.js` | Express + WebSockets, rooms, quick match, reconnects |
 | `public/` | Phone UI, landing wheel, sounds, confetti |
 
@@ -55,7 +55,7 @@ Everyone secretly picks a number from 1 to 10. Then the rule drops, and it's dif
 ```
 npm install
 npm start          # http://localhost:3000
-npm test           # 307 tests: every rule on edge cases, scoring, no-repeat, categories
+npm test           # 280 tests: every rule on edge cases, scoring, no-repeat, categories
 npm run sim        # plays 100+ full games with bots: matches, cancel, 10-player cap, fairness
 ```
 

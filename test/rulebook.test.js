@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { RULEBOOK, RULEBOOK_BY_ID, PARKED, chooseRules, makeDraw } from '../shared/rulebook.js';
+import { RULEBOOK, RULEBOOK_BY_ID, PARKED, DRAW_TYPES, chooseRules, makeDraw } from '../shared/rulebook.js';
 import BOOK from '../shared/rules_v3.js';
 import TWIST from '../shared/rules_twist.js';
 import { scoreRound } from '../shared/engine.js';
@@ -10,7 +10,9 @@ const EDGE = [P(4), P(5, 5, 5, 5), P(2, 2, 8, 8), P(4, 6, 4, 6), P(1, 3, 7, 10, 
 const ctxFor = (rule, picks) => ({ scores: Object.fromEntries(picks.map((p, i) => [p.id, i * 7 - 10])), draw: makeDraw(rule, picks.map((p) => p.id)) });
 
 test('every non-parked rule from rules_v3.json is loaded', () => {
-  assert.equal(RULEBOOK.length, BOOK.rules.length - PARKED.size + TWIST.length);
+  const drawn = BOOK.rules.filter((r) => !PARKED.has(r.id) && DRAW_TYPES.has(r.type)).length;
+  assert.equal(RULEBOOK.length, BOOK.rules.length - PARKED.size - drawn + TWIST.length);
+  assert.ok(RULEBOOK.every((r) => !DRAW_TYPES.has(r.ruleType)), 'a random-draw rule slipped in');
   assert.equal(new Set(RULEBOOK.map((r) => r.id)).size, RULEBOOK.length);
 });
 
@@ -39,8 +41,6 @@ test('spot checks', () => {
   assert.deepEqual(R('FAV-008', P(9, 1)).winners, []);                     // real tie
   assert.equal(R('ALONE-001', P(3, 3, 7)).deltas.p2, 10);                  // unique +10
   assert.equal(R('ALONE-001', P(3, 3, 7)).deltas.p0, -10);                 // copied -10
-  assert.equal(R('FATE-019', P(4, 2, 4), { dice: 4 }).deltas.p0, 10);      // dice hit
-  assert.deepEqual(R('FATE-011', P(2, 8, 5), { num: 7 }).winners, ['p1']); // closest to draw
   assert.equal(R('GREED-003', P(9, 9, 2)).deltas.p0, -10);                 // greed tie costs both
   assert.equal(R('CROWD-006', P(1, 3, 4)).deltas.p0, 10);                  // bigger team (odd) wins
 });

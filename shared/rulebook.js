@@ -7,6 +7,10 @@
 import BOOK from './rules_v3.js';
 import TWIST from './rules_twist.js';
 
+// Rules where the game secretly draws a number (snakes, lucky stars, dice, coin, raffle, hot seat)
+// are left out: players can't reason about a number they never chose. Every rule is decided by the picks alone.
+export const DRAW_TYPES = new Set(['cursed', 'lucky', 'random_draw', 'coin', 'dice', 'raffle', 'hot_seat']);
+
 // Rules that rewrite the scoreboard or hide the rule are parked until they get proper UI.
 export const PARKED = new Set(['WILD-001', 'WILD-002', 'WILD-005', 'WILD-006', 'WILD-007', 'REVENGE-004', 'REVENGE-005']);
 
@@ -313,7 +317,7 @@ export function plainText(text) {
 const TYPE_LABEL = { GREED: 'Greed', ALONE: 'Alone or together', CROWD: 'Crowd', FATE: 'Fate', RAFFLE: 'Raffle', AVG: 'Average', FAV: 'Favourites', REVENGE: 'Revenge', NERVES: 'Nerves', WILD: 'Wild card', DARE: 'Dare' };
 
 const V3_RULES = BOOK.rules
-  .filter((r) => !PARKED.has(r.id) && TYPES[r.type])
+  .filter((r) => !PARKED.has(r.id) && TYPES[r.type] && !DRAW_TYPES.has(r.type))
   .map((r) => ({
     id: r.id,
     text: PLAIN[r.id] || plainText(r.text),
