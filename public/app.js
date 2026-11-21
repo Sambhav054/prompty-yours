@@ -70,6 +70,7 @@ function connect() {
 
 function onState(s) {
   const prev = S;
+  if (s.notice && s.notice !== prev?.notice) toast(s.notice);
   S = s;
   currentCode = s.code;
   store.set('rr_room', s.code);
@@ -131,7 +132,7 @@ const timerBar = () => `<div class="timer"><div style="transform:scaleX(${barSca
 
 // ---------- screens ----------
 function render() {
-  if (!S) return renderHome();
+  if (!S) return entered ? renderHome() : renderLanding();
   switch (S.phase) {
     case 'lobby': return renderLobby();
     case 'pick': return renderPick();
@@ -153,6 +154,8 @@ const ICONS = {
   swords: '<path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6M16 16l4 4M19 21l2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="m5 14 4 4M7 17l-3 3M3 19l2 2"/>',
   trophy: '<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>',
   coin: '<circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10h4a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4"/>',
+  stop: '<circle cx="12" cy="12" r="9"/><path d="M9 9h6v6H9z"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
 };
 const ic = (name, cls = '') =>
   `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
@@ -167,7 +170,34 @@ function wheel(cls = '') {
   return `<svg class="wheel ${cls}" viewBox="0 0 100 100" aria-hidden="true">
     <circle cx="50" cy="50" r="49" fill="var(--gold)"/>${seg}
     <circle cx="50" cy="50" r="30" fill="var(--felt-2)"/><circle cx="50" cy="50" r="8" fill="var(--gold)"/>
-    <circle cx="50" cy="12" r="3.6" fill="var(--paper)"/></svg>`;
+    <g class="ball-orbit"><circle class="ball" cx="50" cy="12" r="3.6" fill="#fff"/></g></svg>`;
+}
+
+// ---------- landing hero (first screen) ----------
+let entered = !!(urlRoom || currentCode); // invite links and reconnects skip straight to the game
+const FLOATERS = [
+  ['7', 6, 14, 0], ['?', 86, 10, 1], ['3', 90, 42, 2], ['10', 4, 46, 3], ['?', 12, 78, 4], ['1', 84, 76, 5],
+  ['5', 48, 6, 6], ['9', 70, 90, 7], ['2', 26, 92, 8], ['?', 94, 60, 9], ['8', 2, 28, 10], ['4', 62, 18, 11],
+];
+function renderLanding() {
+  const fl = FLOATERS.map(([t, x, y, i]) =>
+    `<span class="fl ${t === '?' ? 'q' : i % 3 === 0 ? 'g' : i % 3 === 1 ? 'w' : 'p'} ${y > 22 && y < 84 ? 'mid' : ''}" style="--x:${x}%;--y:${y}%;--d:${7 + (i % 5) * 1.3}s;--dl:${-i * 0.7}s;--r:${(i % 2 ? 1 : -1) * (8 + i)}deg">${t}</span>`).join('');
+  $app.innerHTML = `
+    <section class="hero">
+      <div class="floaters" aria-hidden="true">${fl}
+        <span class="fl die mid" style="--x:80%;--y:28%;--d:9s;--dl:-2s;--r:24deg"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.6"/><circle cx="15.5" cy="15.5" r="1.6"/><circle cx="12" cy="12" r="1.6"/></svg></span>
+        <span class="fl die mid" style="--x:10%;--y:62%;--d:11s;--dl:-5s;--r:-18deg"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.6"/><circle cx="15.5" cy="8.5" r="1.6"/><circle cx="8.5" cy="15.5" r="1.6"/><circle cx="15.5" cy="15.5" r="1.6"/></svg></span>
+      </div>
+      <div class="hero-in">
+        ${wheel('spin hero-wheel')}
+        <h1 class="hero-h"><span class="l1">Think you can win?</span><span class="l2">Think again.</span></h1>
+        <p class="hero-p">Pick your number. Take your chances. Watch the madness unfold!</p>
+        <p class="hero-p">Score points, outplay your friends, but remember… the loser gets to choose the next rule!</p>
+        <p class="hero-lead">Ready to roll the chaos?</p>
+        <button class="hero-btn" data-act="enter">Let's play!</button>
+      </div>
+      <p class="hero-micro">Up to 10 rounds. Endless chaos. One winner.</p>
+    </section>`;
 }
 
 const numClass = (n) => (n % 2 ? 'red' : 'ink'); // roulette colours: odd red, even black
@@ -178,7 +208,10 @@ function topbar() {
     <span class="tag">Round <b>${S.round}/${S.rounds}</b></span>
     <span class="tag gold">${ic('coin')} <b>${S.jackpot}</b></span>
     <span class="tag dim">${esc(S.code)}</span>
-    <button class="ghost" data-act="exit" aria-label="Exit game">${ic('x')}<span>Exit</span></button>
+    <div class="actions">
+      ${S.hostId === pid ? `<button class="act danger" data-act="cancel">${ic('stop')} Cancel game</button>` : ''}
+      <button class="act" data-act="exit">${ic('door')} Exit</button>
+    </div>
   </header>`;
 }
 
@@ -210,7 +243,7 @@ function renderHome() {
           <button class="alt" data-act="join">Join</button>
         </div>
       </div>
-      <p class="fine">${connected ? 'No sign-up. Just a name. 2–6 players, bots fill empty seats.' : '<span class="pulse"></span> Waking the table up…'}</p>
+      <p class="fine">${connected ? 'No sign-up. Just a name. 2–10 players, bots fill empty seats.' : '<span class="pulse"></span> Waking the table up…'}</p>
     </section>`;
   if (urlRoom) document.getElementById('code').focus();
 }
@@ -225,7 +258,8 @@ function renderLobby() {
         <div class="code-big">${[...S.code].map((c) => `<span>${esc(c)}</span>`).join('')}</div>
         ${S.isPublic ? '<span class="cap">Public table</span>' : `<button class="alt sm" data-act="share">${ic('share')} Invite friends</button>`}
       </div>
-      <h2>At the table <span class="count">${S.players.length}/6</span></h2>
+      ${lastGameBlock()}
+      <h2>At the table <span class="count">${S.players.length}/${S.maxPlayers || 10}</span></h2>
       ${chips(false)}
       ${S.isPublic
         ? `<p class="status">Dealing in <b data-countdown>5</b>s. Bots take the empty seats.</p>${timerBar()}`
@@ -238,6 +272,24 @@ function renderLobby() {
       <button class="ghost wide" data-act="leave">${ic('door')} Leave room</button>
     </section>`;
   document.querySelector('[data-act="share"]')?.setAttribute('data-link', link);
+}
+
+// Lobby recap of the game that just finished: winner, match stars and rivalries.
+function lastGameBlock() {
+  const lg = S.lastGame;
+  if (!lg) return '';
+  const top = lg.leaderboard[0];
+  const m = S.match;
+  const head = m?.over
+    ? `${esc(who(m.championId, m.championNick))} ${m.championId === pid ? 'are' : 'is'} the champion`
+    : lg.gameWinnerId ? `${esc(who(top.id, top.nick))} won the last game` : 'Last game ended in a tie';
+  const grudges = (S.grudges || []).slice(0, 2).map((g) =>
+    `<li class="grudge"><span class="ava">${esc(g.oppEmoji)}</span><span>You vs ${esc(g.oppNick)}</span><b>${g.you}–${g.them}</b></li>`).join('');
+  return `<section class="recap">
+    <p class="recap-head">${ic('trophy')} ${head}</p>
+    ${m && !m.over ? `<p class="fine">Match: game ${m.game} of ${m.of} done. First to 2 wins.</p>` : m?.over ? '<p class="fine">Next game starts a new best-of-3.</p>' : ''}
+    ${grudges ? `<ul class="grudges">${grudges}</ul>` : ''}
+  </section>`;
 }
 
 function renderPick() {
@@ -345,7 +397,12 @@ function renderEnd() {
       <ol class="final">${lb.map((p, i) => `<li class="${i === 0 ? 'first' : ''} ${p.id === pid ? 'me' : ''}">
         <span class="rank">${i + 1}</span><span class="ava">${esc(p.emoji)}</span><span class="nm">${esc(who(p.id, p.nick))}</span><b>${p.score}</b></li>`).join('')}</ol>
       ${grudges ? `<h2>Rivalries</h2><ul class="grudges">${grudges}</ul>` : ''}
-      <button class="cta" data-act="rematch">${m && !m.over ? `${ic('play')} Game ${m.game + 1} of ${m.of}` : `${ic('again')} New match`}</button>
+      <p class="status">Back to the lobby in <b class="secs" data-countdown></b>s. New players can join there.</p>
+      ${timerBar()}
+      ${S.hostId === pid
+        ? `<button class="cta" data-act="rematch">${m && !m.over ? `${ic('play')} Play game ${m.game + 1} now` : `${ic('again')} Start a new match now`}</button>
+           <button class="alt" data-act="toLobby">${ic('users')} Back to lobby</button>`
+        : ''}
       <div class="split two">
         <button class="alt" data-act="shareResult">${ic('share')} Share</button>
         <button class="alt" data-act="leave">${ic('door')} Leave</button>
@@ -401,6 +458,11 @@ $app.addEventListener('click', async (e) => {
   }
   else if (act === 'choose') send({ t: 'choose', ruleId: b.dataset.rule });
   else if (act === 'rematch') send({ t: 'rematch' });
+  else if (act === 'enter') { entered = true; render(); document.getElementById('nick')?.focus(); }
+  else if (act === 'cancel') {
+    if (confirm('Cancel this game for everyone? Scores will not count.')) send({ t: 'cancel' });
+  }
+  else if (act === 'toLobby') send({ t: 'lobby' });
   else if (act === 'exit') {
     if (confirm('Leave this game? Bots will take your picks.')) {
       send({ t: 'leave' }); S = null; currentCode = null; store.del('rr_room'); render();
