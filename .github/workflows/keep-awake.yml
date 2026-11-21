@@ -1,0 +1,11 @@
+# Pings the live game every 10 minutes so Render's free plan does not put it to sleep.
+name: keep-awake
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - run: curl -fsS -m 60 https://rule-roulette.onrender.com/healthz || true
