@@ -31,7 +31,7 @@ const REPEAT = [
   '{l} is loyal to {n}. The rule is not.',
 ];
 const REVENGE = [
-  'Revenge! {w} chose this rule and won with it. +10 bonus.',
+  '{w} picked the rule and won with it. Sweet revenge.',
 ];
 
 export function commentary({ winners, tiedCount, jackpot, roaster, roastNumber, repeated, revenge }) {

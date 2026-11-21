@@ -141,38 +141,77 @@ function render() {
   }
 }
 
-function topbar() {
-  return `<div class="topbar">
-    <span class="pill">Round ${S.round}/${S.rounds}</span>
-    <span class="pill jackpot">💰 Jackpot ${S.jackpot}</span>
-    <span class="pill">Room ${esc(S.code)}</span>
-    <button class="exit" data-act="exit" aria-label="Exit game">✕ Exit</button>
-  </div>`;
+// ---------- icons (one stroke family, drawn inline) ----------
+const ICONS = {
+  x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  share: '<path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="m16 6-4-4-4 4"/><path d="M12 2v13"/>',
+  play: '<path d="M7 4.5v15a.5.5 0 0 0 .77.42l11.5-7.5a.5.5 0 0 0 0-.84L7.77 4.08A.5.5 0 0 0 7 4.5Z"/>',
+  again: '<path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/>',
+  bolt: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
+  door: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  swords: '<path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6M16 16l4 4M19 21l2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="m5 14 4 4M7 17l-3 3M3 19l2 2"/>',
+  trophy: '<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>',
+  coin: '<circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10h4a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4"/>',
+};
+const ic = (name, cls = '') =>
+  `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
+
+// The brand mark: a ten-pocket roulette wheel (odd pockets red, even pockets ink).
+function wheel(cls = '') {
+  const seg = Array.from({ length: 10 }, (_, i) => {
+    const a0 = (i * 36 - 90) * (Math.PI / 180), a1 = ((i + 1) * 36 - 90) * (Math.PI / 180);
+    const p = (r, a) => `${(50 + r * Math.cos(a)).toFixed(2)} ${(50 + r * Math.sin(a)).toFixed(2)}`;
+    return `<path d="M${p(46, a0)} A46 46 0 0 1 ${p(46, a1)} L${p(30, a1)} A30 30 0 0 0 ${p(30, a0)}Z" fill="${i % 2 ? 'var(--ink-chip)' : 'var(--red)'}"/>`;
+  }).join('');
+  return `<svg class="wheel ${cls}" viewBox="0 0 100 100" aria-hidden="true">
+    <circle cx="50" cy="50" r="49" fill="var(--gold)"/>${seg}
+    <circle cx="50" cy="50" r="30" fill="var(--felt-2)"/><circle cx="50" cy="50" r="8" fill="var(--gold)"/>
+    <circle cx="50" cy="12" r="3.6" fill="var(--paper)"/></svg>`;
 }
+
+const numClass = (n) => (n % 2 ? 'red' : 'ink'); // roulette colours: odd red, even black
+const who = (id, nick) => (id === pid ? 'You' : nick);
+
+function topbar() {
+  return `<header class="topbar">
+    <span class="tag">Round <b>${S.round}/${S.rounds}</b></span>
+    <span class="tag gold">${ic('coin')} <b>${S.jackpot}</b></span>
+    <span class="tag dim">${esc(S.code)}</span>
+    <button class="ghost" data-act="exit" aria-label="Exit game">${ic('x')}<span>Exit</span></button>
+  </header>`;
+}
+
 function chips(showLock) {
-  return `<div class="players">${S.players
-    .map((p) => `<span class="chip ${showLock && p.locked ? 'locked' : ''} ${p.connected ? '' : 'off'}">
-      ${esc(p.emoji)} ${esc(p.id === pid ? 'You' : p.nick)} <span class="score">${p.score}</span>${showLock && p.locked ? ' ✔' : ''}
-    </span>`)
-    .join('')}</div>`;
+  return `<ul class="seats">${S.players
+    .map((p) => `<li class="seat ${showLock && p.locked ? 'locked' : ''} ${p.connected ? '' : 'off'} ${p.id === pid ? 'me' : ''}">
+      <span class="ava">${esc(p.emoji)}</span><span class="nm">${esc(who(p.id, p.nick))}</span><b class="pts">${p.score}</b>
+      ${showLock && p.locked ? `<span class="ok">${ic('check')}</span>` : ''}
+    </li>`)
+    .join('')}</ul>`;
 }
 
 function renderHome() {
   $app.innerHTML = `
-    <div class="stack">
-      <h1>🎰 Rule Roulette</h1>
-      <p class="muted">Everyone picks a number 1–10. The rule decides who wins, and it changes every round. Last place picks the next rule.</p>
-      <input id="nick" maxlength="14" placeholder="Your name" value="${esc(nick)}" autocomplete="nickname" />
-      <button class="big" data-act="quick">⚡ Play now</button>
-      <div class="row">
-        <button class="secondary" data-act="create">Create room</button>
+    <section class="home">
+      <div class="brand">
+        ${wheel('spin')}
+        <h1 class="wordmark">Rule<br><span>Roulette</span></h1>
       </div>
-      <div class="row">
-        <input id="code" class="code-input" maxlength="4" placeholder="CODE" value="${esc(urlRoom || '')}" />
-        <button class="secondary" data-act="join">Join</button>
+      <p class="lede">Everyone secretly picks 1 to 10. Then the rule drops, and it changes every round. Come last, and you choose the next one.</p>
+      <label class="field"><span>Your name</span>
+        <input id="nick" maxlength="14" placeholder="e.g. Asha" value="${esc(nick)}" autocomplete="nickname" />
+      </label>
+      <button class="cta" data-act="quick">${ic('bolt')} Play now</button>
+      <div class="split">
+        <button class="alt" data-act="create">Create room</button>
+        <div class="join">
+          <input id="code" class="code-input" maxlength="4" placeholder="CODE" aria-label="Room code" value="${esc(urlRoom || '')}" />
+          <button class="alt" data-act="join">Join</button>
+        </div>
       </div>
-      <p class="muted small center">${connected ? 'No sign-up. Just a name.' : 'Connecting to server…'}</p>
-    </div>`;
+      <p class="fine">${connected ? 'No sign-up. Just a name. 2–6 players, bots fill empty seats.' : '<span class="pulse"></span> Waking the table up…'}</p>
+    </section>`;
   if (urlRoom) document.getElementById('code').focus();
 }
 
@@ -180,39 +219,41 @@ function renderLobby() {
   const isHost = S.hostId === pid;
   const link = `${location.origin}/?room=${S.code}`;
   $app.innerHTML = `
-    <div class="stack">
-      <h1>Room</h1>
-      <div class="card center">
-        <p class="muted">Room code</p>
-        <div class="code-big">${esc(S.code)}</div>
-        ${S.isPublic ? '' : `<button class="secondary" data-act="share">📤 Invite friends</button>`}
+    <section class="lobby">
+      <div class="codecard">
+        <span class="cap">Room code</span>
+        <div class="code-big">${[...S.code].map((c) => `<span>${esc(c)}</span>`).join('')}</div>
+        ${S.isPublic ? '<span class="cap">Public table</span>' : `<button class="alt sm" data-act="share">${ic('share')} Invite friends</button>`}
       </div>
-      <h2>Players (${S.players.length}/6)</h2>
+      <h2>At the table <span class="count">${S.players.length}/6</span></h2>
       ${chips(false)}
       ${S.isPublic
-        ? `<p class="center">Starting in <b data-countdown>5</b>s… bots fill empty seats.</p>${timerBar()}`
+        ? `<p class="status">Dealing in <b data-countdown>5</b>s. Bots take the empty seats.</p>${timerBar()}`
         : isHost
           ? `<h2>Rounds</h2>
-             <div class="row seg">${S.roundOptions.map((n) => `<button class="${n === S.rounds ? '' : 'secondary'}" data-act="rounds" data-n="${n}">${n}</button>`).join('')}</div>
-             <button class="big" data-act="start">▶ Start ${S.rounds}-round game</button><p class="muted small center">Bots join if you're fewer than 3.</p>`
-          : `<p class="center muted">${S.rounds} rounds · Waiting for the host to start…</p>`}
-      <button class="secondary" data-act="leave">Leave</button>
-    </div>`;
+             <div class="seg" role="group" aria-label="Number of rounds">${S.roundOptions.map((n) => `<button class="${n === S.rounds ? 'on' : ''}" aria-pressed="${n === S.rounds}" data-act="rounds" data-n="${n}">${n}</button>`).join('')}</div>
+             <button class="cta" data-act="start">${ic('play')} Start ${S.rounds}-round game</button>
+             <p class="fine">Fewer than 3 players? Bots join so the game still works.</p>`
+          : `<p class="status">${S.rounds} rounds. Waiting for the host to start…</p>`}
+      <button class="ghost wide" data-act="leave">${ic('door')} Leave room</button>
+    </section>`;
   document.querySelector('[data-act="share"]')?.setAttribute('data-link', link);
 }
 
 function renderPick() {
   const mine = S.yourPick;
-  const fresh = renderPick.round !== S.round; // animate the rule card only when a new round starts
+  const fresh = renderPick.round !== S.round; // deal the rule card only when a new round starts
   renderPick.round = S.round;
   $app.innerHTML = `
     ${topbar()}
-    <div class="rule ${fresh ? 'pop' : ''}"><div class="label">This round's rule</div><div class="text">${esc(S.rule.text)}</div>
-      <div class="sub">Ties cancel out${S.jackpot ? ` · Jackpot ${S.jackpot}` : ''}</div></div>
+    <article class="rulecard ${fresh ? 'deal' : ''} ${S.rule.type}">
+      <p class="rtext">${esc(S.rule.text)}</p>
+      <p class="rnote">Ties cancel out${S.jackpot ? ` · ${S.jackpot} in the jackpot` : ''}</p>
+    </article>
     ${timerBar()}
-    <p class="center">${mine == null ? 'Pick a number, quick! <b data-countdown></b>' : `Locked in <b>${mine}</b> ✔ Waiting for others…`}</p>
-    <div class="pad">${Array.from({ length: 10 }, (_, i) => i + 1)
-      .map((n) => `<button data-act="pick" data-n="${n}" class="${mine === n ? 'mine' : ''}" ${mine != null ? 'disabled' : ''}>${n}</button>`)
+    <p class="prompt">${mine == null ? 'Pick your number <b class="secs" data-countdown></b>' : `Locked in <b class="num-inline ${numClass(mine)}">${mine}</b> Waiting for the table…`}</p>
+    <div class="pad ${mine != null ? 'done' : ''}">${Array.from({ length: 10 }, (_, i) => i + 1)
+      .map((n) => `<button data-act="pick" data-n="${n}" class="chipnum ${numClass(n)} ${mine === n ? 'mine' : ''}" ${mine != null ? 'disabled' : ''} aria-label="Pick ${n}">${n}</button>`)
       .join('')}</div>
     ${chips(true)}`;
 }
@@ -223,19 +264,93 @@ function revealBlock(rev, animate) {
   const items = rev.picks.map((p, i) => {
     const visible = i < shown;
     const d = rev.deltas[p.id] || 0;
-    const cls = !visible ? 'hidden'
-      : done && rev.winners.includes(p.id) ? 'win'
-      : done && rev.tied?.includes(p.id) ? 'tie'
-      : done && rev.roastedId === p.id ? 'roast shake' : '';
-    return `<div class="reveal-item ${cls}">
-      <span>${esc(p.emoji)} ${esc(p.id === pid ? 'You' : p.nick)}${p.auto && visible ? ' <span class="muted small">(auto)</span>' : ''}</span>
-      <span>${done && d ? `<span class="delta ${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : ''}${d}</span> ` : ''}<span class="num">${visible ? p.n : '?'}</span></span>
-    </div>`;
+    const state = !done ? '' : rev.winners.includes(p.id) ? 'win' : rev.tied?.includes(p.id) ? 'tie' : rev.roastedId === p.id ? 'roast' : '';
+    return `<li class="row ${state} ${p.id === pid ? 'me' : ''}">
+      <span class="ava">${esc(p.emoji)}</span>
+      <span class="nm">${esc(who(p.id, p.nick))}${p.auto && visible ? ' <i>auto</i>' : ''}</span>
+      ${done && d ? `<span class="delta ${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : ''}${d}</span>` : '<span></span>'}
+      <span class="tile ${visible ? `flipped ${numClass(p.n)}` : ''}"><span class="back"></span><span class="face">${p.n}</span></span>
+    </li>`;
   }).join('');
   const miss = done ? nearMiss(rev) : '';
-  return `${done && rev.revengeId ? `<div class="banner pop">⚔️ REVENGE! ${esc(rev.revengeId === pid ? 'You' : rev.picks.find((p) => p.id === rev.revengeId)?.nick)} +${10}</div>` : ''}
-    <div class="reveal-list">${items}</div>
-    ${done ? `<p class="center muted">${esc(rev.notes)}</p><p class="line pop">${esc(rev.line)}</p>${miss ? `<p class="miss pop">${esc(miss)}</p>` : ''}` : `<p class="center muted">🥁 Drumroll…</p>`}`;
+  const revengeName = rev.revengeId ? who(rev.revengeId, rev.picks.find((p) => p.id === rev.revengeId)?.nick) : '';
+  return `${done && rev.revengeId ? `<div class="banner">${ic('swords')} Revenge! ${esc(revengeName)} +10</div>` : ''}
+    <ol class="board">${items}</ol>
+    ${done
+      ? `<p class="notes">${esc(rev.notes)}</p><p class="call">${esc(rev.line)}</p>${miss ? `<p class="miss">${esc(miss)}</p>` : ''}`
+      : '<p class="notes drum">Revealing…</p>'}`;
+}
+
+function renderReveal() {
+  const rev = S.reveal;
+  $app.innerHTML = `
+    ${topbar()}
+    <article class="rulecard small"><p class="rtext">${esc(rev.rule.text)}</p></article>
+    ${revealBlock(rev, true)}`;
+}
+
+function renderChoose() {
+  const c = S.choice;
+  const mineTurn = c.loserId === pid;
+  const fresh = renderChoose.round !== S.round; // deal the cards once per choice, not on every update
+  renderChoose.round = S.round;
+  $app.innerHTML = `
+    ${topbar()}
+    <section class="spot ${mineTurn ? 'mine' : ''}">
+      ${mineTurn
+        ? `<h2>You're in last place</h2><p>Pick the next rule. Win with it for a +10 revenge bonus.</p>`
+        : `<h2>${esc(c.loserNick)} is choosing</h2><p>Last place picks the next rule. Shout your advice.</p>`}
+      ${timerBar()}
+    </section>
+    <div class="hand ${fresh ? 'deal-in' : ''}">${c.options
+      .map((r, i) => `<button class="rulecard pickable ${r.type}" style="--i:${i}" data-act="choose" data-rule="${esc(r.id)}" ${mineTurn ? '' : 'disabled'}>
+        <span class="rtext">${esc(r.text)}</span><span class="rtype">${r.type === 'chaos' ? 'Chaos' : 'Logic'}</span></button>`)
+      .join('')}</div>
+    ${chips(false)}`;
+}
+
+function renderEnd() {
+  const lb = S.leaderboard || [];
+  const m = S.match;
+  const myRank = lb.findIndex((p) => p.id === pid) + 1;
+  const gw = m?.gameWinnerId ? lb.find((p) => p.id === m.gameWinnerId) : null;
+
+  // Headline: the match champion once the best-of-3 is decided, otherwise this game's result.
+  let head, sub;
+  if (m?.over) {
+    const champ = m.championId === pid;
+    head = champ ? 'You are the champion' : `${esc(m.championNick)} is the champion`;
+    sub = champ ? 'Best of 3, decided. Bragging rights are yours.' : `Best of 3, decided. You finished #${myRank} this game.`;
+  } else {
+    head = gw ? (gw.id === pid ? 'You won this game' : `${esc(gw.nick)} wins this game`) : 'Tied at the top';
+    sub = gw ? `Game ${m.game} of ${m.of}. First to 2 wins takes the match.` : 'Nobody takes the match point this time.';
+  }
+
+  const standings = m ? `<div class="stars">${m.standings.filter((s) => s.wins > 0 || s.id === pid).slice(0, 4)
+    .map((s) => `<span class="star-chip ${s.id === m.championId ? 'champ' : ''}">${esc(s.emoji)} ${esc(who(s.id, s.nick))}
+      <span class="pips">${'<i class="on"></i>'.repeat(s.wins)}${'<i></i>'.repeat(Math.max(0, 2 - s.wins))}</span></span>`).join('')}</div>` : '';
+
+  const grudges = (S.grudges || []).map((g) => {
+    const lead = g.you > g.them ? 'You lead' : g.you < g.them ? `${esc(g.oppNick)} leads` : 'All square';
+    const cta = g.you < g.them ? ' Revenge?' : g.you === g.them ? ' Settle it.' : '';
+    return `<li class="grudge"><span class="ava">${esc(g.oppEmoji)}</span><span>You vs ${esc(g.oppNick)}<small>${lead}.${cta}</small></span><b>${g.you}–${g.them}</b></li>`;
+  }).join('');
+
+  $app.innerHTML = `
+    <section class="end">
+      <div class="crest ${m?.over ? 'champ' : ''}">${ic('trophy')}</div>
+      <h1 class="headline">${head}</h1>
+      <p class="sub">${sub}</p>
+      ${standings}
+      <ol class="final">${lb.map((p, i) => `<li class="${i === 0 ? 'first' : ''} ${p.id === pid ? 'me' : ''}">
+        <span class="rank">${i + 1}</span><span class="ava">${esc(p.emoji)}</span><span class="nm">${esc(who(p.id, p.nick))}</span><b>${p.score}</b></li>`).join('')}</ol>
+      ${grudges ? `<h2>Rivalries</h2><ul class="grudges">${grudges}</ul>` : ''}
+      <button class="cta" data-act="rematch">${m && !m.over ? `${ic('play')} Game ${m.game + 1} of ${m.of}` : `${ic('again')} New match`}</button>
+      <div class="split two">
+        <button class="alt" data-act="shareResult">${ic('share')} Share</button>
+        <button class="alt" data-act="leave">${ic('door')} Leave</button>
+      </div>
+    </section>`;
 }
 
 // Near-miss: re-run the real rule with every other number in place of yours.
@@ -257,75 +372,6 @@ function nearMiss(rev) {
   return gap === 1
     ? `So close! You were one number away. Pick ${best} and you'd have won.`
     : `Pick ${best} and you'd have won this round.`;
-}
-
-function renderReveal() {
-  const rev = S.reveal;
-  $app.innerHTML = `
-    ${topbar()}
-    <div class="rule"><div class="label">Rule</div><div class="text">${esc(rev.rule.text)}</div></div>
-    ${revealBlock(rev, true)}`;
-}
-
-function renderChoose() {
-  const c = S.choice;
-  const mineTurn = c.loserId === pid;
-  $app.innerHTML = `
-    ${topbar()}
-    <div class="card center" style="margin-top:12px">
-      ${mineTurn
-        ? `<h2>😬 You're in last place!</h2><p>Pick the NEXT rule. Win with it for a +10 revenge bonus.</p>`
-        : `<h2>${esc(c.loserNick)} is choosing…</h2><p class="muted">Last place picks the next rule. Shout advice!</p>`}
-      ${timerBar()}
-    </div>
-    <div class="choices" style="margin-top:12px">${c.options
-      .map((r) => `<button class="choice pop" data-act="choose" data-rule="${esc(r.id)}" ${mineTurn ? '' : 'disabled'}>
-        <span class="type">${esc(r.type)}</span>${esc(r.text)}</button>`)
-      .join('')}</div>
-    ${chips(false)}`;
-}
-
-function renderEnd() {
-  const lb = S.leaderboard || [];
-  const m = S.match;
-  const name = (id, nick) => (id === pid ? 'You' : nick);
-  const myRank = lb.findIndex((p) => p.id === pid) + 1;
-  const gw = m?.gameWinnerId ? lb.find((p) => p.id === m.gameWinnerId) : null;
-
-  // Headline: the match champion if the best-of-3 is decided, otherwise this game's result.
-  let head, sub;
-  if (m?.over) {
-    const champ = m.championId === pid;
-    head = champ ? '🏆 You are the champion!' : `🏆 ${esc(m.championNick)} is the champion!`;
-    sub = champ ? 'Best of 3, decided. Bragging rights are yours.' : `Best of 3, decided. You finished #${myRank} this game.`;
-  } else {
-    head = gw ? (gw.id === pid ? 'You won this game!' : `${esc(gw.nick)} wins this game`) : 'Tied at the top!';
-    sub = gw ? `Game ${m.game} of ${m.of} · first to 2 wins takes the match` : 'Nobody takes the match point this time.';
-  }
-
-  const standings = m ? `<div class="match">${m.standings.filter((s) => s.wins > 0 || s.id === pid).slice(0, 4)
-    .map((s) => `<span class="mchip ${s.id === m.championId ? 'champ' : ''}">${esc(s.emoji)} ${esc(name(s.id, s.nick))} ${'★'.repeat(s.wins)}${'☆'.repeat(Math.max(0, 2 - s.wins))}</span>`).join('')}</div>` : '';
-
-  const grudges = (S.grudges || []).map((g) => {
-    const lead = g.you > g.them ? 'You lead' : g.you < g.them ? `${esc(g.oppNick)} leads` : 'All square';
-    const cta = g.you < g.them ? ' Revenge?' : g.you === g.them ? ' Settle it.' : '';
-    return `<div class="grudge"><span>${esc(g.oppEmoji)} You vs ${esc(g.oppNick)}</span><b>${g.you}–${g.them}</b><span class="muted small">${lead}.${cta}</span></div>`;
-  }).join('');
-
-  $app.innerHTML = `
-    <div class="stack">
-      <h1 class="center ${m?.over ? 'pop' : ''}">${head}</h1>
-      <p class="center muted">${sub}</p>
-      ${standings}
-      <div class="lb">${lb.map((p, i) => `<div class="item ${i === 0 ? 'first' : ''}">
-        <span>${i + 1}. ${esc(p.emoji)} ${esc(name(p.id, p.nick))}</span><b>${p.score}</b></div>`).join('')}</div>
-      ${grudges ? `<h2>Rivalries</h2><div class="grudges">${grudges}</div>` : ''}
-      <button class="big" data-act="rematch">${m && !m.over ? `▶ Game ${m.game + 1} of ${m.of}` : '🔁 New match'}</button>
-      <div class="row">
-        <button class="secondary" data-act="shareResult">📤 Share</button>
-        <button class="secondary" data-act="leave">Leave</button>
-      </div>
-    </div>`;
 }
 
 // ---------- input ----------
