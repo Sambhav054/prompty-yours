@@ -1,5 +1,6 @@
 // Rule Roulette phone client. Talks to the server over a WebSocket and renders whatever state it gets.
 import { sound } from './sound.js';
+import { RULES_BY_ID } from '/shared/rules.js';
 
 const $app = document.getElementById('app');
 const $toast = document.getElementById('toast');
@@ -103,23 +104,30 @@ function startReveal(rev) {
   }, step);
 }
 
-// ---------- timer bar (updates without re-rendering everything) ----------
+// ---------- timer bar: redrawn every animation frame for a smooth, continuous decay ----------
 let lastTickSec = -1;
-setInterval(() => {
-  const bar = document.querySelector('.timer > div');
-  const label = document.querySelector('[data-countdown]');
-  if (!S) return;
-  const left = Math.max(0, deadline - Date.now());
-  const total = S.phase === 'lobby' ? 5000 : S.phaseMs || 1;
-  if (bar) {
-    bar.style.width = `${Math.min(100, (left / total) * 100)}%`;
-    bar.parentElement.classList.toggle('urgent', left < 2000);
+const timeLeft = () => Math.max(0, deadline - Date.now());
+const phaseTotal = () => (S?.phase === 'lobby' ? 5000 : S?.phaseMs || 1);
+const barScale = () => Math.min(1, timeLeft() / phaseTotal());
+function frame() {
+  if (S) {
+    const left = timeLeft();
+    const bar = document.querySelector('.timer > div');
+    if (bar) {
+      bar.style.transform = `scaleX(${barScale()})`;
+      bar.parentElement.classList.toggle('urgent', left < 2000);
+    }
+    const sec = Math.ceil(left / 1000);
+    const label = document.querySelector('[data-countdown]');
+    if (label && label.textContent !== String(sec)) label.textContent = sec;
+    if (S.phase === 'pick' && S.yourPick == null && sec <= 3 && sec > 0 && sec !== lastTickSec) sound.tick();
+    lastTickSec = sec;
   }
-  if (label) label.textContent = Math.ceil(left / 1000);
-  const sec = Math.ceil(left / 1000);
-  if (S.phase === 'pick' && S.yourPick == null && sec <= 3 && sec > 0 && sec !== lastTickSec) sound.tick();
-  lastTickSec = sec;
-}, 100);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+// Timer markup starts at the right width, so a re-render never makes the bar jump.
+const timerBar = () => `<div class="timer"><div style="transform:scaleX(${barScale()})"></div></div>`;
 
 // ---------- screens ----------
 function render() {
@@ -138,6 +146,7 @@ function topbar() {
     <span class="pill">Round ${S.round}/${S.rounds}</span>
     <span class="pill jackpot">💰 Jackpot ${S.jackpot}</span>
     <span class="pill">Room ${esc(S.code)}</span>
+    <button class="exit" data-act="exit" aria-label="Exit game">✕ Exit</button>
   </div>`;
 }
 function chips(showLock) {
@@ -181,7 +190,7 @@ function renderLobby() {
       <h2>Players (${S.players.length}/6)</h2>
       ${chips(false)}
       ${S.isPublic
-        ? `<p class="center">Starting in <b data-countdown>5</b>s… bots fill empty seats.</p><div class="timer"><div></div></div>`
+        ? `<p class="center">Starting in <b data-countdown>5</b>s… bots fill empty seats.</p>${timerBar()}`
         : isHost
           ? `<button class="big" data-act="start">▶ Start game</button><p class="muted small center">Bots join if you're fewer than 3.</p>`
           : `<p class="center muted">Waiting for the host to start…</p>`}
@@ -196,8 +205,9 @@ function renderPick() {
   renderPick.round = S.round;
   $app.innerHTML = `
     ${topbar()}
-    <div class="rule ${fresh ? 'pop' : ''}"><div class="label">This round's rule</div><div class="text">${esc(S.rule.text)}</div></div>
-    <div class="timer"><div></div></div>
+    <div class="rule ${fresh ? 'pop' : ''}"><div class="label">This round's rule</div><div class="text">${esc(S.rule.text)}</div>
+      <div class="sub">Ties cancel out${S.jackpot ? ` · Jackpot ${S.jackpot}` : ''}</div></div>
+    ${timerBar()}
     <p class="center">${mine == null ? 'Pick a number, quick! <b data-countdown></b>' : `Locked in <b>${mine}</b> ✔ Waiting for others…`}</p>
     <div class="pad">${Array.from({ length: 10 }, (_, i) => i + 1)
       .map((n) => `<button data-act="pick" data-n="${n}" class="${mine === n ? 'mine' : ''}" ${mine != null ? 'disabled' : ''}>${n}</button>`)
@@ -211,14 +221,40 @@ function revealBlock(rev, animate) {
   const items = rev.picks.map((p, i) => {
     const visible = i < shown;
     const d = rev.deltas[p.id] || 0;
-    const cls = !visible ? 'hidden' : done && rev.winners.includes(p.id) ? 'win' : done && rev.roastedId === p.id ? 'roast shake' : '';
+    const cls = !visible ? 'hidden'
+      : done && rev.winners.includes(p.id) ? 'win'
+      : done && rev.tied?.includes(p.id) ? 'tie'
+      : done && rev.roastedId === p.id ? 'roast shake' : '';
     return `<div class="reveal-item ${cls}">
       <span>${esc(p.emoji)} ${esc(p.id === pid ? 'You' : p.nick)}${p.auto && visible ? ' <span class="muted small">(auto)</span>' : ''}</span>
       <span>${done && d ? `<span class="delta ${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : ''}${d}</span> ` : ''}<span class="num">${visible ? p.n : '?'}</span></span>
     </div>`;
   }).join('');
-  return `<div class="reveal-list">${items}</div>
-    ${done ? `<p class="center muted">${esc(rev.notes)}</p><p class="line pop">${esc(rev.line)}</p>` : `<p class="center muted">🥁 Drumroll…</p>`}`;
+  const miss = done ? nearMiss(rev) : '';
+  return `${done && rev.revengeId ? `<div class="banner pop">⚔️ REVENGE! ${esc(rev.revengeId === pid ? 'You' : rev.picks.find((p) => p.id === rev.revengeId)?.nick)} +${10}</div>` : ''}
+    <div class="reveal-list">${items}</div>
+    ${done ? `<p class="center muted">${esc(rev.notes)}</p><p class="line pop">${esc(rev.line)}</p>${miss ? `<p class="miss pop">${esc(miss)}</p>` : ''}` : `<p class="center muted">🥁 Drumroll…</p>`}`;
+}
+
+// Near-miss: re-run the real rule with every other number in place of yours.
+function nearMiss(rev) {
+  if (rev.winners.includes(pid)) return '';
+  const mine = rev.picks.find((p) => p.id === pid);
+  const rule = RULES_BY_ID[rev.rule.id];
+  if (!mine || !rule) return '';
+  const winning = [];
+  for (let n = 1; n <= 10; n++) {
+    if (n === mine.n) continue;
+    const picks = rev.picks.map((p) => ({ id: p.id, n: p.id === pid ? n : p.n, t: p.t }));
+    const w = rule.resolve(picks).winners;
+    if (w.length === 1 && w[0] === pid) winning.push(n);
+  }
+  if (!winning.length) return 'No number could have saved you this round.';
+  const best = winning.reduce((a, b) => (Math.abs(b - mine.n) < Math.abs(a - mine.n) ? b : a));
+  const gap = Math.abs(best - mine.n);
+  return gap === 1
+    ? `So close! You were one number away. Pick ${best} and you'd have won.`
+    : `Pick ${best} and you'd have won this round.`;
 }
 
 function renderReveal() {
@@ -236,9 +272,9 @@ function renderChoose() {
     ${topbar()}
     <div class="card center" style="margin-top:12px">
       ${mineTurn
-        ? `<h2>😬 You're in last place!</h2><p>Your revenge: pick the NEXT rule.</p>`
+        ? `<h2>😬 You're in last place!</h2><p>Pick the NEXT rule. Win with it for a +10 revenge bonus.</p>`
         : `<h2>${esc(c.loserNick)} is choosing…</h2><p class="muted">Last place picks the next rule. Shout advice!</p>`}
-      <div class="timer"><div></div></div>
+      ${timerBar()}
     </div>
     <div class="choices" style="margin-top:12px">${c.options
       .map((r) => `<button class="choice pop" data-act="choose" data-rule="${esc(r.id)}" ${mineTurn ? '' : 'disabled'}>
@@ -292,6 +328,11 @@ $app.addEventListener('click', async (e) => {
   }
   else if (act === 'choose') send({ t: 'choose', ruleId: b.dataset.rule });
   else if (act === 'rematch') send({ t: 'rematch' });
+  else if (act === 'exit') {
+    if (confirm('Leave this game? Bots will take your picks.')) {
+      send({ t: 'leave' }); S = null; currentCode = null; store.del('rr_room'); render();
+    }
+  }
   else if (act === 'leave') { send({ t: 'leave' }); S = null; currentCode = null; store.del('rr_room'); render(); }
   else if (act === 'share') shareText(`Join my Rule Roulette room ${S.code}! 🎰`, b.dataset.link);
   else if (act === 'shareResult') {
