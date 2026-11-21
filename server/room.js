@@ -232,7 +232,8 @@ export class Room {
       this.match.gameWinnerId = null;
     }
     this.usedRules = this.usedRules || new Set();
-    this.rule = chooseRules(1, { round: 1, used: this.usedRules, recent: this.recentSeen() })[0];
+    this.gameCats = new Set(); // one rule per category in a game
+    this.rule = chooseRules(1, { round: 1, used: this.usedRules, recent: this.recentSeen(), usedCats: this.gameCats })[0];
     this.nextRound();
   }
 
@@ -243,6 +244,7 @@ export class Room {
     this.choice = null;
     this.history.push(this.rule.id);
     this.usedRules.add(this.rule.id);
+    this.gameCats.add(this.rule.category);
     for (const p of this.players) if (!p.bot) markSeen(p.id, this.rule.id);
     this.draw = makeDraw(this.rule, this.players.map((p) => p.id));
     this.setPhase('pick', this.cfg.PICK_MS);
@@ -338,7 +340,7 @@ export class Room {
     const loser = findLoser(this.players, this.scores, { lastChooserId: this.lastChooserId, chooseCounts: this.chooseCounts });
     this.lastChooserId = loser.id;
     this.chooseCounts[loser.id] = (this.chooseCounts[loser.id] || 0) + 1;
-    const options = chooseRules(3, { round: this.round + 1, used: this.usedRules, recent: this.recentSeen() });
+    const options = chooseRules(3, { round: this.round + 1, used: this.usedRules, recent: this.recentSeen(), usedCats: this.gameCats });
     this.choice = { loserId: loser.id, options: options.map((r) => r.id) };
     this.setPhase('choose', this.cfg.LOSER_MS);
     if (loser.bot || !loser.connected) {

@@ -164,3 +164,19 @@ console.log('Rules played:', ruleCount);
   room.clearTimers(); room.cancelEmptyTimer();
   console.log('OK: after a game the table waits in the lobby; nothing auto-starts.');
 }
+
+// In a real room, every round of a game comes from a different category.
+{
+  for (let k = 0; k < 20; k++) {
+    let done;
+    const ended = new Promise((r) => (done = r));
+    const room = new Room('CATS' + k, { cfg: { ...FAST, MIN_PLAYERS: 4 }, onEnd: () => done() });
+    room.rounds = 10;
+    room.start();
+    await ended;
+    const cats = room.history.map((id) => RULES_BY_ID[id].category);
+    if (new Set(cats).size !== cats.length) throw new Error(`category repeated in a game: ${cats.join(', ')}`);
+    room.clearTimers(); room.cancelEmptyTimer();
+  }
+  console.log('OK: every game uses a different category each round.');
+}

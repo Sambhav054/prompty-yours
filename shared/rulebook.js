@@ -5,6 +5,7 @@
 //   single-winner results go through the house rule (twins knock out, real ties cancel);
 //   group results ("everyone who…") pay exactly what the rule says.
 import BOOK from './rules_v3.js';
+import TWIST from './rules_twist.js';
 
 // Rules that rewrite the scoreboard or hide the rule are parked until they get proper UI.
 export const PARKED = new Set(['WILD-001', 'WILD-002', 'WILD-005', 'WILD-006', 'WILD-007', 'REVENGE-004', 'REVENGE-005']);
@@ -311,7 +312,7 @@ export function plainText(text) {
 
 const TYPE_LABEL = { GREED: 'Greed', ALONE: 'Alone or together', CROWD: 'Crowd', FATE: 'Fate', RAFFLE: 'Raffle', AVG: 'Average', FAV: 'Favourites', REVENGE: 'Revenge', NERVES: 'Nerves', WILD: 'Wild card', DARE: 'Dare' };
 
-export const RULEBOOK = BOOK.rules
+const V3_RULES = BOOK.rules
   .filter((r) => !PARKED.has(r.id) && TYPES[r.type])
   .map((r) => ({
     id: r.id,
@@ -331,23 +332,111 @@ export const RULEBOOK = BOOK.rules
     },
   }));
 
+
+// ---------- cards from the 500-card rulebook (declarative logic) ----------
+const cnt = (picks, n) => picks.filter((q) => q.n === n).length;
+function test(f, p, picks) {
+  if (!f) return true;
+  const others = picks.filter((q) => q.id !== p.id);
+  switch (f.op) {
+    case 'all': return true;
+    case 'and': return f.items.every((x) => test(x, p, picks));
+    case 'count': { const c = cnt(picks, p.n); return f.eq != null ? c === f.eq : c >= (f.min ?? 1); }
+    case 'eq': return p.n === f.value;
+    case 'lt': return p.n < f.value;
+    case 'lte': return p.n <= f.value;
+    case 'gt': return p.n > f.value;
+    case 'gte': return p.n >= f.value;
+    case 'odd': return p.n % 2 === 1;
+    case 'even': return p.n % 2 === 0;
+    case 'offset': return others.some((q) => q.n === p.n + f.value);
+    case 'distance': return others.some((q) => Math.abs(q.n - p.n) === f.value);
+    case 'sumPartner': return others.some((q) => q.n + p.n === f.value);
+    case 'multiple': return others.some((q) => p.n === f.value * q.n);
+    case 'fraction': return others.some((q) => q.n === f.value * p.n);
+    case 'between': return others.some((q) => q.n < p.n) && others.some((q) => q.n > p.n);
+    default: return false;
+  }
+}
+function cond(c, picks) {
+  const pairs = (fn) => picks.some((a, i) => picks.some((z, j) => i < j && fn(a, z)));
+  switch (c.op) {
+    case 'numberCount': { const k = cnt(picks, c.number); return c.exact != null ? k === c.exact : k >= (c.atLeast ?? 1); }
+    case 'pairSum': return pairs((a, z) => a.n + z.n === c.value);
+    case 'pairGap': return pairs((a, z) => Math.abs(a.n - z.n) === c.value);
+    case 'sumOdd': return picks.reduce((s, p) => s + p.n, 0) % 2 === 1;
+    case 'duplicate': return new Set(picks.map((p) => p.n)).size < picks.length;
+    case 'distinctAtLeast': return new Set(picks.map((p) => p.n)).size >= c.value;
+    default: return false;
+  }
+}
+function targetOf(t, picks) {
+  if (typeof t === 'number') return t;
+  const a = picks.reduce((s, p) => s + p.n, 0) / picks.length;
+  if (t?.op === 'halfAverage') return a / 2;
+  if (t?.op === 'midpoint') return (Math.min(...picks.map((p) => p.n)) + Math.max(...picks.map((p) => p.n))) / 2;
+  return a;
+}
+function rewardFor(r, p) {
+  if (typeof r === 'number') return r;
+  if (r?.op === 'subtract') return r.from - (r.factor ?? 1) * p.n;
+  if (r?.op === 'conditional') return test(r.filter, p, [p]) ? r.yes : r.no;
+  return 10;
+}
+function runBranch(br, picks) {
+  const pc = {};
+  for (const pen of br.penalties || []) for (const p of picks) if (test(pen.filter, p, picks)) add(pc, p.id, pen.points);
+  const ok = picks.filter((p) => test(br.filter, p, picks));
+  if (!ok.length) return { winners: [], pointChanges: pc, notes: 'Nobody qualified.' };
+  let best;
+  if (br.rank === 'highest') best = top(ok);
+  else if (br.rank === 'lowest') best = bottom(ok);
+  else if (br.rank === 'closest') best = closest(ok, targetOf(br.target, picks));
+  else best = ok;
+  if (br.tiePolicy === 'share') { for (const p of best) add(pc, p.id, rewardFor(br.reward, p)); return { winners: [], pointChanges: pc, notes: best.length ? `Pairs on ${best[0].n} win!` : '', group: true }; }
+  if (best.length === 1) add(pc, best[0].id, rewardFor(br.reward, best[0]) - 10); // the engine adds the base 10
+  return { winners: ids(best), pointChanges: pc, notes: best.length === 1 ? `${best[0].n} takes it` : '' };
+}
+const TWIST_RULES = TWIST.map((r) => ({
+  id: r.id,
+  text: r.text,
+  category: r.category,
+  label: r.category,
+  type: r.tier >= 2 ? 'chaos' : 'logic',
+  tier: r.tier,
+  skipRound1: false,
+  params: {},
+  effects: [],
+  ruleType: 'twist',
+  resolve(picks) {
+    if (!picks.length) return none('Nobody played.');
+    const L = r.logic;
+    if (L.condition) { const yes = cond(L.condition, picks); const res = runBranch(yes ? L.then : L.else, picks); return { ...res, notes: `${yes ? 'Twist triggered!' : 'No twist.'} ${res.notes}`.trim() }; }
+    return runBranch(L, picks);
+  },
+}));
+
+export const RULEBOOK = [...V3_RULES, ...TWIST_RULES];
+
 export const RULEBOOK_BY_ID = Object.fromEntries(RULEBOOK.map((r) => [r.id, r]));
 
 // Choose rules for a round: right tier for the round, never one already used in this
 // game/match, and avoiding what anyone at the table saw recently. Falls back gracefully.
-export function chooseRules(count, { round = 1, used = new Set(), recent = new Set() } = {}) {
+export function chooseRules(count, { round = 1, used = new Set(), recent = new Set(), usedCats = new Set() } = {}) {
   const tierMax = round <= 3 ? 1 : round <= 7 ? 2 : 3;
   const shuffle = (a) => a.map((x) => [Math.random(), x]).sort((p, q) => p[0] - q[0]).map((x) => x[1]);
-  const fits = (r) => r.tier <= tierMax && !(round === 1 && r.skipRound1) && !used.has(r.id);
+  const fits = (r) => r.tier <= tierMax && !(round === 1 && r.skipRound1) && !used.has(r.id) && !usedCats.has(r.category);
   const tiers = [
     RULEBOOK.filter((r) => fits(r) && !recent.has(r.id)),
     RULEBOOK.filter((r) => fits(r)),
+    RULEBOOK.filter((r) => !used.has(r.id) && !usedCats.has(r.category) && !(round === 1 && r.skipRound1)),
     RULEBOOK.filter((r) => !used.has(r.id) && !(round === 1 && r.skipRound1)),
     RULEBOOK,
   ];
   const out = [];
   for (const pool of tiers) {
-    for (const r of shuffle(pool)) { if (out.length >= count) break; if (!out.includes(r)) out.push(r); }
+    // the options offered together also come from different categories
+    for (const r of shuffle(pool)) { if (out.length >= count) break; if (!out.includes(r) && !out.some((o) => o.category === r.category)) out.push(r); }
     if (out.length >= count) break;
   }
   return out;

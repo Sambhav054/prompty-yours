@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { RULEBOOK, RULEBOOK_BY_ID, PARKED, chooseRules, makeDraw } from '../shared/rulebook.js';
 import BOOK from '../shared/rules_v3.js';
+import TWIST from '../shared/rules_twist.js';
 import { scoreRound } from '../shared/engine.js';
 
 const P = (...ns) => ns.map((n, i) => ({ id: 'p' + i, n, t: i }));
@@ -9,7 +10,7 @@ const EDGE = [P(4), P(5, 5, 5, 5), P(2, 2, 8, 8), P(4, 6, 4, 6), P(1, 3, 7, 10, 
 const ctxFor = (rule, picks) => ({ scores: Object.fromEntries(picks.map((p, i) => [p.id, i * 7 - 10])), draw: makeDraw(rule, picks.map((p) => p.id)) });
 
 test('every non-parked rule from rules_v3.json is loaded', () => {
-  assert.equal(RULEBOOK.length, BOOK.rules.length - PARKED.size);
+  assert.equal(RULEBOOK.length, BOOK.rules.length - PARKED.size + TWIST.length);
   assert.equal(new Set(RULEBOOK.map((r) => r.id)).size, RULEBOOK.length);
 });
 
@@ -67,4 +68,23 @@ test('a new room avoids rules a player saw recently', () => {
 
 test('round 1-3 rules are tier 1', () => {
   for (let i = 0; i < 50; i++) for (const r of chooseRules(3, { round: 2 })) assert.equal(r.tier, 1);
+});
+
+test('a 10-round game uses 10 different categories, options are from different categories too', () => {
+  for (let g = 0; g < 50; g++) {
+    const used = new Set(), cats = new Set();
+    for (let round = 1; round <= 10; round++) {
+      const opts = chooseRules(3, { round, used, usedCats: cats });
+      assert.equal(new Set(opts.map((o) => o.category)).size, opts.length, 'options share a category');
+      for (const o of opts) assert.ok(!cats.has(o.category), `category ${o.category} repeated in round ${round}`);
+      used.add(opts[0].id); cats.add(opts[0].category);
+    }
+    assert.equal(cats.size, 10);
+  }
+});
+
+test('plot twist and greed cards from the 500-card book', () => {
+  const R = (id, picks) => scoreRound(RULEBOOK_BY_ID[id], picks, { jackpot: 0, streaks: {} }, undefined, { scores: {}, draw: {} });
+  assert.deepEqual(R('rr-001', P(1, 5, 9)).winners, ['p2']); // someone picked 1 -> highest wins
+  assert.deepEqual(R('rr-001', P(3, 5, 9)).winners, ['p0']); // no 1 -> lowest wins
 });
