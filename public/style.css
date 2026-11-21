@@ -339,9 +339,13 @@ input:focus { border-color: var(--gold); }
 /* ---------- landing: one wheel fills the screen ---------- */
 .stage { min-height: calc(100dvh - 54px); display: grid; place-items: center; }
 #app:has(.stage) { max-width: none; }
-.wheel-wrap { position: relative; width: min(96vw, 88dvh, 760px); aspect-ratio: 1; }
-.bigwheel { width: 100%; height: 100%; display: block; filter: drop-shadow(0 30px 50px rgb(0 0 0 / 0.55)); }
-.pockets, .ring-text, .ball-orbit-big { transform-origin: 200px 200px; }
+.wheel-wrap { position: relative; display: block; width: min(96vw, 88dvh, 760px); aspect-ratio: 1; padding: 0; border-radius: 50%; background: none; color: inherit; touch-action: manipulation; }
+.wheel-wrap:active .hub { transform: translate(-50%, -50%) scale(0.96); }
+.wheel-wrap:hover .hub { transform: translate(-50%, -50%) scale(1.04); }
+.hub { display: grid; place-items: center; }
+.bigwheel { position: relative; width: 100%; height: 100%; display: block; }
+.wheel-wrap::before { content: ''; position: absolute; inset: 2%; border-radius: 50%; box-shadow: 0 30px 60px -10px rgb(0 0 0 / 0.6); }
+.pockets, .ring-text, .ball-orbit-big { transform-origin: 200px 200px; will-change: transform; }
 .pockets { animation: spin 40s linear infinite; }
 .pocket-n { fill: #fff; font-family: var(--display); font-weight: 800; font-size: 22px; }
 .ring-text { animation: spin 26s linear infinite reverse; }
@@ -350,7 +354,7 @@ input:focus { border-color: var(--gold); }
 .ring-line .g { fill: var(--gold); }
 .ring-line .dot { fill: var(--red); font-size: 14px; }
 .ball-orbit-big { animation: roll 7s cubic-bezier(0.12, 0.62, 0.25, 1) infinite; }
-.ball-big { animation: dropBig 7s ease-in-out infinite; filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.5)); }
+.ball-big { animation: dropBig 7s ease-in-out infinite; }
 @keyframes dropBig { 0%, 45% { transform: translateY(-4px); } 70%, 92% { transform: translateY(14px); } 100% { transform: translateY(-4px); } }
 .hub {
   position: absolute; left: 50%; top: 50%; width: 40%; aspect-ratio: 1; transform: translate(-50%, -50%);
@@ -358,11 +362,10 @@ input:focus { border-color: var(--gold); }
   background: radial-gradient(circle at 38% 32%, #ffe3a3, var(--gold) 45%, var(--gold-deep));
   box-shadow: 0 0 0 6px rgb(25 21 38 / 0.9), 0 0 0 9px var(--gold-deep), 0 18px 40px -10px rgb(255 200 87 / 0.55);
   font-family: var(--display); font-weight: 800; text-transform: uppercase; line-height: 0.95; letter-spacing: -0.01em;
-  font-size: clamp(1.4rem, 7.2vw, 3.2rem);
-  transition: transform 0.25s var(--ease-out), box-shadow 0.25s;
-  animation: hubPulse 2.4s ease-in-out infinite;
+  font-size: clamp(2rem, 10vw, 4.2rem);
+  transition: transform 0.15s var(--ease-out);
+  z-index: 2; cursor: pointer; touch-action: manipulation; will-change: transform;
 }
-.hub:hover { transform: translate(-50%, -50%) scale(1.05); }
-.hub:active { transform: translate(-50%, -50%) scale(0.97); }
-@keyframes hubPulse { 50% { box-shadow: 0 0 0 6px rgb(25 21 38 / 0.9), 0 0 0 9px var(--gold-deep), 0 0 0 18px rgb(255 200 87 / 0.12), 0 18px 40px -10px rgb(255 200 87 / 0.7); } }
+.hub::after { content: ''; position: absolute; inset: -14px; border-radius: 50%; border: 3px solid var(--gold); opacity: 0; animation: hubRing 2.4s ease-out infinite; pointer-events: none; }
+@keyframes hubRing { 0% { transform: scale(0.92); opacity: 0.55; } 100% { transform: scale(1.18); opacity: 0; } }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

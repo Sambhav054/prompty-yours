@@ -103,3 +103,29 @@ console.log('Rules played:', ruleCount);
   room.clearTimers(); room.cancelEmptyTimer();
   console.log('OK: public tables cannot be cancelled.');
 }
+
+// Fairness: who picks the next rule rotates. Nobody chooses twice in a row.
+{
+  let back2back = 0, games = 0;
+  const shares = [];
+  for (let g = 0; g < 40; g++) {
+    let done;
+    const ended = new Promise((r) => (done = r));
+    const room = new Room('FAIR' + g, { cfg: { ...FAST, MIN_PLAYERS: 4 }, onEnd: () => done() });
+    const seq = [];
+    const orig = room.loserPhase.bind(room);
+    room.loserPhase = () => { orig(); seq.push(room.choice.loserId); };
+    room.rounds = 10;
+    room.start();
+    await ended;
+    room.clearTimers(); room.cancelEmptyTimer();
+    for (let i = 1; i < seq.length; i++) if (seq[i] === seq[i - 1]) back2back++;
+    const counts = {};
+    for (const id of seq) counts[id] = (counts[id] || 0) + 1;
+    shares.push(Math.max(...Object.values(counts)) / seq.length);
+    games++;
+  }
+  if (back2back) throw new Error(`same chooser twice in a row ${back2back} times`);
+  const avgMax = shares.reduce((a, b) => a + b, 0) / shares.length;
+  console.log(`OK: fair chooser over ${games} games: never twice in a row, busiest chooser averages ${(avgMax * 100).toFixed(0)}% of picks.`);
+}

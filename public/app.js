@@ -1,6 +1,7 @@
 // Rule Roulette phone client. Talks to the server over a WebSocket and renders whatever state it gets.
 import { sound } from './sound.js';
 import { RULES_BY_ID } from '/shared/rules.js';
+import { decide } from '/shared/engine.js';
 
 const $app = document.getElementById('app');
 const $toast = document.getElementById('toast');
@@ -213,10 +214,10 @@ function renderLanding() {
   $app.innerHTML = `
     <section class="stage">
       <h1 class="sr-only">Rule Roulette: think you can win? Think again.</h1>
-      <div class="wheel-wrap">
+      <button class="wheel-wrap" data-act="enter" aria-label="Play">
         ${bigWheel()}
-        <button class="hub" data-act="enter"><span>Let's<br>play!</span></button>
-      </div>
+        <span class="hub" aria-hidden="true"><span>Play!</span></span>
+      </button>
     </section>`;
 }
 
@@ -389,7 +390,7 @@ function revealBlock(rev, animate) {
   const items = rev.picks.map((p, i) => {
     const visible = i < shown;
     const d = rev.deltas[p.id] || 0;
-    const state = !done ? '' : rev.winners.includes(p.id) ? 'win' : rev.tied?.includes(p.id) ? 'tie' : rev.roastedId === p.id ? 'roast' : '';
+    const state = !done ? '' : rev.winners.includes(p.id) ? 'win' : rev.tied?.includes(p.id) || rev.knocked?.includes(p.id) ? 'tie' : rev.roastedId === p.id ? 'roast' : '';
     return `<li class="row ${state} ${p.id === pid ? 'me' : ''}">
       <span class="ava">${esc(p.emoji)}</span>
       <span class="nm">${esc(who(p.id, p.nick))}${p.auto && visible ? ' <i>auto</i>' : ''}</span>
@@ -493,7 +494,7 @@ function nearMiss(rev) {
   for (let n = 1; n <= 10; n++) {
     if (n === mine.n) continue;
     const picks = rev.picks.map((p) => ({ id: p.id, n: p.id === pid ? n : p.n, t: p.t }));
-    const w = rule.resolve(picks).winners;
+    const w = decide(rule, picks).winners; // same house rules as the server
     if (w.length === 1 && w[0] === pid) winning.push(n);
   }
   if (!winning.length) return 'No number could have saved you this round.';
