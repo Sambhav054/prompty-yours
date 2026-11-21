@@ -1,0 +1,21 @@
+{
+  "name": "rule-roulette",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Rule Roulette: a party number game where the rule changes every round. By team Prompty Yours.",
+  "type": "module",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "test": "node --test test/",
+    "sim": "node test/sim.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.2",
+    "ws": "^8.18.0"
+  }
+}
