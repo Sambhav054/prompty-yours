@@ -179,7 +179,7 @@ export class Room {
     this.round = 0;
     this.jackpot = 0;
     this.setPhase('lobby', 0);
-    this.scheduleQuickStart();
+    this.quickStartAt = 0; // after a game nobody is dealt in automatically: the host starts the next one
     this.emit();
   }
 

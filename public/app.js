@@ -83,10 +83,15 @@ function onState(s) {
   lastPhaseKey = key;
 
   if (phaseChanged && s.phase === 'reveal' && s.reveal && s.reveal.round !== revealRound) startReveal(s.reveal);
-  if (phaseChanged && s.phase === 'end' && (s.match?.gameWinnerId || s.match?.over)) {
-    const big = s.match?.over || s.match?.gameWinnerId === pid || s.match?.championId === pid;
-    setTimeout(() => confetti(big ? 220 : 120), 150);
-    if (big) sound.win();
+  // Celebrate every finished game exactly once (keyed by room + game number), champion or not.
+  if (s.phase === 'end' && s.match && (s.match.gameWinnerId || s.match.over)) {
+    const celebrateKey = `${s.code}:${s.match.game}:${s.match.over}`;
+    if (celebrateKey !== lastCelebrated) {
+      lastCelebrated = celebrateKey;
+      const big = s.match.over || s.match.gameWinnerId === pid;
+      setTimeout(() => confetti(big ? 240 : 130), 200);
+      if (big) sound.win();
+    }
   }
   if (phaseChanged && s.phase === 'choose' && s.choice?.loserId === pid) { sound.spotlight(); navigator.vibrate?.([60, 40, 60]); }
   if (phaseChanged && s.phase === 'pick' && prev?.phase !== 'pick') { /* new round */ }
@@ -94,8 +99,10 @@ function onState(s) {
 }
 
 // ---------- confetti: one canvas, game colours, gravity and drift, cleans itself up ----------
+let lastCelebrated = '';
 function confetti(count = 140) {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  // Reduced-motion phones (and Windows with animations off) still get a short, gentle burst.
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) count = Math.min(count, 50);
   const c = document.createElement('canvas');
   c.className = 'confetti';
   const dpr = Math.min(2, devicePixelRatio || 1);
@@ -383,7 +390,7 @@ function renderLobby() {
       ${lastGameBlock()}
       <h2>At the table <span class="count">${S.players.length}/${S.maxPlayers || 10}</span></h2>
       ${chips(false)}
-      ${S.isPublic
+      ${S.isPublic && S.quickStartIn
         ? `<p class="status">Dealing in <b data-countdown>5</b>s. Bots take the empty seats.</p>${timerBar()}`
         : isHost
           ? `<h2>Rounds</h2>

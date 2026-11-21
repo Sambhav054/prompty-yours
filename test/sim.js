@@ -149,3 +149,18 @@ console.log('Rules played:', ruleCount);
   }
   console.log('OK: no rule repeats within any best-of-3 match.');
 }
+
+// After a game, everyone returns to the lobby and nothing starts by itself (public tables too).
+{
+  let done;
+  const ended = new Promise((r) => (done = r));
+  const room = new Room('NOAUTO', { isPublic: true, cfg: { ...FAST, END_MS: 20, QUICK_FILL_MS: 20 }, onEnd: () => done() });
+  room.addHuman('h', 'Host');
+  room.rounds = 6;
+  room.start();
+  await ended;
+  await new Promise((r) => setTimeout(r, 120)); // results screen -> lobby, then well past the quick-fill time
+  if (room.phase !== 'lobby') throw new Error(`expected lobby after a game, got ${room.phase}`);
+  room.clearTimers(); room.cancelEmptyTimer();
+  console.log('OK: after a game the table waits in the lobby; nothing auto-starts.');
+}
