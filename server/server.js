@@ -13,7 +13,8 @@ const PORT = process.env.PORT || 3000;
 const app = express();
 app.use(express.static(path.join(ROOT, 'public')));
 app.use('/shared', express.static(path.join(ROOT, 'shared')));
-app.get('/healthz', (_req, res) => res.json({ ok: true, rooms: rooms.size }));
+app.get('/healthz', (_req, res) =>
+  res.json({ ok: true, rooms: rooms.size, version: (process.env.RENDER_GIT_COMMIT || 'local').slice(0, 7) }));
 
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });

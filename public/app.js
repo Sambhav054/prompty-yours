@@ -192,9 +192,11 @@ function renderLobby() {
 
 function renderPick() {
   const mine = S.yourPick;
+  const fresh = renderPick.round !== S.round; // animate the rule card only when a new round starts
+  renderPick.round = S.round;
   $app.innerHTML = `
     ${topbar()}
-    <div class="rule pop"><div class="label">This round's rule</div><div class="text">${esc(S.rule.text)}</div></div>
+    <div class="rule ${fresh ? 'pop' : ''}"><div class="label">This round's rule</div><div class="text">${esc(S.rule.text)}</div></div>
     <div class="timer"><div></div></div>
     <p class="center">${mine == null ? 'Pick a number, quick! <b data-countdown></b>' : `Locked in <b>${mine}</b> ✔ Waiting for others…`}</p>
     <div class="pad">${Array.from({ length: 10 }, (_, i) => i + 1)
