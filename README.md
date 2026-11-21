@@ -10,7 +10,7 @@ A party game for 2 to 6 phones. Everyone secretly picks a number from 1 to 10. T
 
 ## Play it
 
-Live link: _coming soon_
+Live link: **https://rule-roulette.onrender.com** (no sign-up, opens on any phone)
 
 ## How it works
 
