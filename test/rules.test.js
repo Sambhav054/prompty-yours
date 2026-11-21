@@ -66,12 +66,12 @@ test('closest-to-average', () => {
   assert.deepEqual(R('closest-to-average', P(2, 4, 9)).winners, ['p1']);
 });
 
-test('lucky-seven', () => {
+test('lucky-seven: closest to 7, two 7s lose 5 and sit out', () => {
   assert.deepEqual(R('lucky-seven', P(7, 3, 2)).winners, ['p0']);
   const clash = R('lucky-seven', P(7, 7, 2));
-  assert.deepEqual(clash.winners, []);
+  assert.deepEqual(clash.winners, ['p2']);
   assert.deepEqual(clash.pointChanges, { p0: -5, p1: -5 });
-  assert.deepEqual(R('lucky-seven', P(1, 2)).winners, []);
+  assert.deepEqual(R('lucky-seven', P(1, 9)).winners, ['p1']);
 });
 
 test('odd-only: highest odd wins', () => {
@@ -86,14 +86,20 @@ test('no-twins: twins lose 5, highest lone number wins', () => {
   assert.deepEqual(R('no-twins', P(4, 4)).winners, []);
 });
 
-test('engine: ties cancel out and feed the jackpot', () => {
-  // Two players both pick 5 on "closest to 5": nobody scores.
-  const r = scoreRound(RULES_BY_ID['closest-to-5'], P(5, 5, 1), { jackpot: 0, streaks: {} });
-  assert.deepEqual(r.winners, []);
-  assert.deepEqual(r.tied, ['p0', 'p1']);
-  assert.equal(r.deltas.p0, 0);
-  assert.equal(r.deltas.p1, 0);
-  assert.equal(r.jackpot, 10);
+test('engine: matching numbers knock out, real ties cancel', () => {
+  // User's case: farthest from 5 with 1, 9, 9 -> the 9s knock each other out, 1 wins.
+  const a = scoreRound(RULES_BY_ID['farthest-from-5'], P(1, 9, 9), { jackpot: 0, streaks: {} });
+  assert.deepEqual(a.winners, ['p0']);
+  assert.deepEqual(a.knocked, ['p1', 'p2']);
+  // 1 vs 9: both 4 away from 5, different numbers -> real tie, nobody wins, jackpot grows.
+  const b = scoreRound(RULES_BY_ID['farthest-from-5'], P(9, 1), { jackpot: 0, streaks: {} });
+  assert.deepEqual(b.winners, []);
+  assert.deepEqual(b.tied, ['p0', 'p1']);
+  assert.equal(b.jackpot, 10);
+  // 5, 5, 4 on closest to 5: the 5s knock out, 4 wins.
+  assert.deepEqual(scoreRound(RULES_BY_ID['closest-to-5'], P(5, 5, 4), { jackpot: 0, streaks: {} }).winners, ['p2']);
+  // Everyone the same: nobody left, nobody wins.
+  assert.deepEqual(scoreRound(RULES_BY_ID['closest-to-5'], P(5, 5), { jackpot: 0, streaks: {} }).winners, []);
 });
 
 test('engine: every rule gives at most one winner on random picks', () => {
@@ -139,7 +145,7 @@ test('engine: streak bonus on third win', () => {
 test('engine: penalties apply', () => {
   const r = scoreRound(RULES_BY_ID['lucky-seven'], P(7, 7, 1), { jackpot: 0, streaks: {} });
   assert.equal(r.deltas.p0, -5);
-  assert.equal(r.jackpot, 10);
+  assert.equal(r.deltas.p2, 10);
 });
 
 test('findLoser picks among lowest', () => {
@@ -154,6 +160,7 @@ test('quirky: greedy-ten pays double, two 10s lose 10', () => {
   const r = scoreRound(RULES_BY_ID['greedy-ten'], P(10, 3, 4), { jackpot: 0, streaks: {} });
   assert.equal(r.deltas.p0, 20);
   const c = scoreRound(RULES_BY_ID['greedy-ten'], P(10, 10, 4), { jackpot: 0, streaks: {} });
+  assert.equal(c.deltas.p2, 10);
   assert.equal(c.deltas.p0, -10);
   assert.equal(c.deltas.p1, -10);
 });
@@ -163,13 +170,14 @@ test('quirky: pays-its-number', () => {
   assert.equal(r.deltas.p0, 2); // +10 win, -8 paid
 });
 
-test('quirky: double-trouble, step-up, lonely, odd-one-out', () => {
+test('quirky: double-trouble, step-up, lonely, odd-one-out with fallbacks', () => {
   assert.deepEqual(R('double-trouble', P(3, 6, 4, 8)).winners, ['p3']);
-  assert.deepEqual(R('double-trouble', P(3, 5, 7)).winners, []);
+  assert.deepEqual(R('double-trouble', P(3, 5, 7)).winners, ['p0']);
   assert.deepEqual(R('step-up', P(4, 5, 9)).winners, ['p1']);
+  assert.deepEqual(R('step-up', P(2, 6, 9)).winners, ['p0']);
   assert.deepEqual(R('lonely-number', P(1, 2, 10)).winners, ['p2']);
   assert.deepEqual(R('odd-one-out', P(2, 4, 7)).winners, ['p2']);
-  assert.deepEqual(R('odd-one-out', P(1, 3, 2, 4)).winners, []);
+  assert.deepEqual(R('odd-one-out', P(1, 3, 2, 8)).winners, ['p3']);
 });
 
 test('quirky: bomb-four, one-banned, robin-hood, no-going-over-7', () => {

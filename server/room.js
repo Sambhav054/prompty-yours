@@ -204,6 +204,8 @@ export class Room {
     this.lastWinningPick = null;
     this.history = [];
     this.ruleChosenBy = null;
+    this.lastChooserId = null; // fair rotation of who picks the next rule
+    this.chooseCounts = {};
     // Best-of-3 match: a new match starts after the previous one is decided.
     if (!this.match || this.match.over) {
       this.match = { game: 1, of: 3, wins: {}, totals: {}, over: false, championId: null, gameWinnerId: null };
@@ -264,7 +266,7 @@ export class Room {
     this.streaks = res.streaks;
 
     const nickOf = (id) => this.get(id)?.nick || '?';
-    const losers = list.filter((p) => !res.winners.includes(p.id) && !res.tied.includes(p.id));
+    const losers = list.filter((p) => !res.winners.includes(p.id) && !res.tied.includes(p.id) && !res.knocked.includes(p.id));
     const roasted = losers.length ? losers[rand(0, losers.length - 1)] : null;
     const repeated = roasted ? this.lastPickBy[roasted.id] === roasted.n : false;
     for (const p of list) this.lastPickBy[p.id] = p.n;
@@ -288,6 +290,7 @@ export class Room {
       picks: order.map((p) => ({ id: p.id, nick: nickOf(p.id), emoji: this.get(p.id)?.emoji, n: p.n, t: p.t, auto: !!p.auto })),
       winners: res.winners,
       tied: res.tied,
+      knocked: res.knocked,
       revengeId,
       chosenBy: this.ruleChosenBy,
       deltas: res.deltas,
@@ -305,7 +308,9 @@ export class Room {
   }
 
   loserPhase() {
-    const loser = findLoser(this.players, this.scores);
+    const loser = findLoser(this.players, this.scores, { lastChooserId: this.lastChooserId, chooseCounts: this.chooseCounts });
+    this.lastChooserId = loser.id;
+    this.chooseCounts[loser.id] = (this.chooseCounts[loser.id] || 0) + 1;
     const options = randomRules(3, this.rule.id);
     this.choice = { loserId: loser.id, options: options.map((r) => r.id) };
     this.setPhase('choose', this.cfg.LOSER_MS);
